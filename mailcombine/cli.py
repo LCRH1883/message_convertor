@@ -1,6 +1,7 @@
 from __future__ import annotations
-import sys, argparse, tempfile, traceback
+import sys, argparse, tempfile, traceback, json
 from pathlib import Path
+from typing import List, Dict, Any
 
 from .writer import write_record, write_header
 from .extractors import (
@@ -15,13 +16,19 @@ def main(argv=None):
     parser.add_argument("-i", "--input", default="msg_files", help="Root folder to search recursively")
     parser.add_argument("-o", "--output", default="combined_emails.txt", help="Output text file")
     parser.add_argument("--encoding", default="utf-8", help="Output encoding (default utf-8)")
+    parser.add_argument("--attachments", action="store_true", help="Also list attachments in the text output")
+    parser.add_argument("--json", dest="json_path", default=None, help="Write JSON sidecar log to this path (default: <output>.json)")
+    parser.add_argument("--no-json", dest="no_json", action="store_true", help="Disable JSON sidecar logging")
     args = parser.parse_args(argv)
 
     in_dir = Path(args.input).expanduser().resolve()
     out_path = Path(args.output).expanduser().resolve()
+    json_path = None if args.no_json else (Path(args.json_path).expanduser().resolve() if args.json_path else Path(str(out_path) + ".json"))
 
     print(f"[INFO] Input folder: {in_dir}")
     print(f"[INFO] Output file : {out_path}")
+    if json_path:
+        print(f"[INFO] JSON log    : {json_path}")
     if not in_dir.exists():
         print(f"[ERROR] Input folder does not exist: {in_dir}")
         return 2
@@ -34,6 +41,7 @@ def main(argv=None):
 
     processed = 0
     errors = 0
+    json_records: List[Dict[str, Any]] = []
 
     with open(out_path, "w", encoding=args.encoding, errors="replace") as out:
         write_header(out, str(in_dir))
@@ -43,7 +51,8 @@ def main(argv=None):
             print(f"[INFO] (.msg {idx}/{len(msg_files)}) {p}")
             try:
                 rec = extract_from_msg(p)
-                write_record(out, rec)
+                write_record(out, rec, show_attachments=args.attachments)
+                json_records.append(rec)
                 processed += 1
             except Exception:
                 errors += 1
@@ -58,7 +67,8 @@ def main(argv=None):
             print(f"[INFO] (.eml {idx}/{len(eml_files)}) {p}")
             try:
                 rec = extract_from_eml(p)
-                write_record(out, rec)
+                write_record(out, rec, show_attachments=args.attachments)
+                json_records.append(rec)
                 processed += 1
             except Exception:
                 errors += 1
@@ -83,9 +93,9 @@ def main(argv=None):
                             for eidx, eml in enumerate(extracted, 1):
                                 try:
                                     rec = extract_from_eml(eml)
-                                    # Include PST source for chain-of-custody clarity
                                     rec['source'] = f"{pst} :: {eml}"
-                                    write_record(out, rec)
+                                    write_record(out, rec, show_attachments=args.attachments)
+                                    json_records.append(rec)
                                     processed += 1
                                 except Exception:
                                     errors += 1
@@ -101,6 +111,19 @@ def main(argv=None):
                             out.write(traceback.format_exc())
                             out.write("="*90 + "\n\n")
                             print(f"[ERROR] Failed .pst: {pst}")
+
+    # Write JSON sidecar
+    if (not args.no_json) and json_records:
+        try:
+            with open(json_path, "w", encoding="utf-8") as jf:
+                json.dump({
+                    "source_root": str(in_dir),
+                    "output_text": str(out_path),
+                    "messages": json_records,
+                }, jf, ensure_ascii=False, indent=2)
+            print(f"[INFO] JSON log written: {json_path}")
+        except Exception as e:
+            print(f"[WARN] Could not write JSON log: {e}")
 
     print(f"[DONE] Wrote {processed} message(s) to: {out_path}")
     if errors:
