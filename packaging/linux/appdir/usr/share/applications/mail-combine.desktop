@@ -1,0 +1,10 @@
+
+[Desktop Entry]
+Type=Application
+Name=Mail Combine
+Comment=Combine MSG/EML/PST into one searchable TXT (GUI)
+Exec=mail-combine-linux-gui
+Icon=mail-combine
+Terminal=false
+Categories=Office;Utility;
+

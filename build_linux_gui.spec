@@ -1,4 +1,5 @@
-# PyInstaller spec for Linux GUI build
+
+# PyInstaller spec for Linux GUI (onefile or onedir)
 from PyInstaller.utils.hooks import collect_data_files
 
 datas = collect_data_files('mailcombine', includes=['resources/linux64/*'], include_py_files=False)
@@ -19,6 +20,9 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     name='mail-combine-linux-gui',
-    console=False,
+    console=False,   # GUI app
     onefile=True
 )
+
+# For the AppImage, the script will build --onedir using this same spec, then package it.
+
