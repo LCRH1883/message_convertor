@@ -2,6 +2,7 @@ from __future__ import annotations
 import os, sys, tempfile, subprocess, platform, shutil, re, hashlib
 from pathlib import Path
 from importlib.resources import files as pkg_files
+from .extractors_readpst_fallback import resolve_readpst_path
 
 try:
     import extract_msg
@@ -147,7 +148,8 @@ def extract_from_eml(eml_path: Path) -> dict:
 
 # ---- PST (embedded readpst) ----
 def has_embedded_readpst() -> bool:
-    return _get_embedded_readpst_path() is not None
+    path = _get_embedded_readpst_path()
+    return bool(path and path.exists())
 
 def _get_embedded_readpst_path():
     system = platform.system().lower()
@@ -163,15 +165,29 @@ def _get_embedded_readpst_path():
     return Path(p) if p.is_file() else None
 
 def _stage_readpst_to_temp() -> Path:
-    src = _get_embedded_readpst_path()
-    if not src:
-        raise RuntimeError("PST support is not available in this build (embedded readpst missing).")
-    tdir = Path(tempfile.mkdtemp(prefix="readpst_"))
-    dst = tdir / src.name
-    with open(src, "rb") as fsrc, open(dst, "wb") as fdst: shutil.copyfileobj(fsrc, fdst)
-    if platform.system().lower().startswith("linux"):
-        os.chmod(dst, 0o755)
-    return dst
+    embedded_src = _get_embedded_readpst_path()
+    resolved = resolve_readpst_path(_get_embedded_readpst_path)
+    if not resolved:
+        raise RuntimeError("PST support is not available in this build (readpst executable not found).")
+    resolved_path = Path(resolved)
+
+    use_embedded = False
+    if embedded_src:
+        try:
+            use_embedded = os.path.samefile(str(embedded_src), str(resolved_path))
+        except Exception:
+            use_embedded = Path(embedded_src) == resolved_path
+
+    if use_embedded:
+        tdir = Path(tempfile.mkdtemp(prefix="readpst_"))
+        dst = tdir / resolved_path.name
+        with open(embedded_src, "rb") as fsrc, open(dst, "wb") as fdst:
+            shutil.copyfileobj(fsrc, fdst)
+        if platform.system().lower().startswith("linux"):
+            os.chmod(dst, 0o755)
+        return dst
+
+    return resolved_path
 
 def iter_eml_paths_from_pst(pst_path: Path, temp_root: Path):
     readpst = _stage_readpst_to_temp()

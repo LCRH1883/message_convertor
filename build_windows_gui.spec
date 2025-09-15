@@ -1,7 +1,7 @@
 # PyInstaller spec for Windows GUI onefile
 from PyInstaller.utils.hooks import collect_data_files
 
-datas = collect_data_files('mailcombine', includes=['resources/win64/*'], include_py_files=False)
+datas = collect_data_files('mailcombine', includes=['resources/win64/*','resources/linux64/*'], include_py_files=False)
 
 a = Analysis(
     ['mailcombine/gui.py'],
@@ -22,3 +22,4 @@ exe = EXE(
     console=False,   # GUI app
     onefile=True
 )
+
