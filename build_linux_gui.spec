@@ -1,6 +1,7 @@
 # PyInstaller spec for Linux GUI (onefile/onedir)
 from PyInstaller.utils.hooks import collect_data_files
 
+# include embedded PST binary
 datas = collect_data_files('mailcombine', includes=['resources/linux64/*'], include_py_files=False)
 
 a = Analysis(
@@ -18,7 +19,8 @@ exe = EXE(
     a.binaries,
     a.zipfiles,
     a.datas,
-    name='msgsecure-linux-gui',
-    console=False,   # GUI app
-    onefile=False
+    name='msgsecure-linux-gui',  # final binary name
+    console=False,               # windowed build
+    onefile=True
 )
+
