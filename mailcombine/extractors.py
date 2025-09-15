@@ -151,7 +151,8 @@ def has_embedded_readpst() -> bool:
 
 def _get_embedded_readpst_path():
     system = platform.system().lower()
-    base = pkg_files("mailcombine.resources")
+    # Resolve under the mailcombine package, then into the resources dir.
+    base = pkg_files("mailcombine") / "resources"
     if system.startswith("win"):
         rel = Path("win64") / "readpst.exe"
     elif system.startswith("linux"):
@@ -186,4 +187,3 @@ def iter_eml_paths_from_pst(pst_path: Path, temp_root: Path):
         )
     for p in sorted(out_dir.rglob("*.eml")):
         yield p
-

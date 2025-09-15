@@ -1,2 +1,1 @@
-# Package marker for runtime resource access
-
+# marks mailcombine.resources as a package
