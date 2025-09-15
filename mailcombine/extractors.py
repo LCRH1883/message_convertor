@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os, sys, tempfile, subprocess, platform, shutil, re, hashlib
 from pathlib import Path
-from importlib.resources import files as pkg_files
+from importlib.resources import files as pkg_files, as_file
 from .extractors_readpst_fallback import resolve_readpst_path
 
 try:
@@ -148,21 +148,48 @@ def extract_from_eml(eml_path: Path) -> dict:
 
 # ---- PST (embedded readpst) ----
 def has_embedded_readpst() -> bool:
-    path = _get_embedded_readpst_path()
-    return bool(path and path.exists())
+    p = _get_embedded_readpst_path()
+    # print(f"[debug] readpst resolved to: {p}")  # uncomment for quick test
+    return bool(p and Path(p).is_file())
 
 def _get_embedded_readpst_path():
+    """
+    Return a real Path to the embedded readpst binary if present.
+    Tries importlib.resources first, then PyInstaller _MEIPASS fallbacks.
+    """
     system = platform.system().lower()
-    # Resolve under the mailcombine package, then into the resources dir.
-    base = pkg_files("mailcombine") / "resources"
-    if system.startswith("win"):
-        rel = Path("win64") / "readpst.exe"
-    elif system.startswith("linux"):
-        rel = Path("linux64") / "readpst"
-    else:
+    plat_dir = "win64" if system.startswith("win") else ("linux64" if system.startswith("linux") else None)
+    exe_name = "readpst.exe" if system.startswith("win") else "readpst"
+    if plat_dir is None:
         return None
-    p = base / rel
-    return Path(p) if p.is_file() else None
+
+    # 1) importlib.resources route (works in src and many frozen cases)
+    try:
+        base = pkg_files("mailcombine") / "resources" / plat_dir
+        cand = base / exe_name
+        with as_file(cand) as real_path:
+            rp = Path(real_path)
+            if rp.is_file():
+                return rp
+    except Exception:
+        pass
+
+    # 2) PyInstaller onefile extraction dir
+    try:
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            for rel in (
+                os.path.join("mailcombine", "resources", plat_dir, exe_name),
+                os.path.join("resources", plat_dir, exe_name),
+                os.path.join(plat_dir, exe_name),
+            ):
+                p = Path(meipass) / rel
+                if p.is_file():
+                    return p
+    except Exception:
+        pass
+
+    return None
 
 def _stage_readpst_to_temp() -> Path:
     embedded_src = _get_embedded_readpst_path()
