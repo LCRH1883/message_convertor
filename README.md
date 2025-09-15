@@ -58,6 +58,16 @@ Options:
 
 --no-json Disable JSON sidecar
 
+### New options:
+
+--hashes [path] write a CSV (`type,parent_source,filename,size,sha256`) with message and attachment hashes (default <output>_hashes.csv)
+
+--progress-file <path> write JSONL progress for GUI/monitoring (events: scan, processed, pst_start, pst_extracted, pst_skipped, done)
+
+### GUI note:
+
+The GUI shows a determinate progress bar while processing `.msg/.eml` (known totals) and switches to indeterminate during `.pst` conversion (unknown upfront). It finishes at 100% when the CLI signals `phase=done`.
+
 ### Text output example:
 
 ```
@@ -149,8 +159,4 @@ mail-combine/
 ```
 
 ---
-
-## Notes
-
-If you need to export hashes.csv or add a progress bar to the GUI, open an issue or extend gui.py and writer.py.
 
