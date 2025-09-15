@@ -20,7 +20,7 @@ python -m pip install --upgrade pip >/dev/null
 pip install -r requirements-gui.txt pyinstaller >/dev/null
 
 # 2) Build onedir (easier to stage into AppDir)
-pyinstaller --clean build_linux_gui.spec --onedir
+pyinstaller --clean build_linux_gui_onedir.spec
 
 # 3) Stage AppDir
 mkdir -p "$APPDIR/usr/bin"
@@ -50,4 +50,3 @@ fi
 mkdir -p dist
 "$APPIMAGE_TOOL" "$APPDIR" "$OUT_APPIMAGE"
 echo "✅ Portable ready: $OUT_APPIMAGE"
-
