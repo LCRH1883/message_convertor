@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=MsgSecure
+Name=msgsecure
 Comment=Convert MSG/EML/PST into one searchable TXT (GUI)
 Exec=msgsecure-linux-gui
 Icon=msgsecure_logo
