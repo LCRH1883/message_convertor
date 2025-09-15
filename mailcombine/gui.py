@@ -1,14 +1,32 @@
 from __future__ import annotations
-import sys, json, time, tempfile, threading
+import sys, json, time, tempfile, threading, traceback
 from pathlib import Path
+
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QFileDialog, QTextEdit, QCheckBox, QProgressBar
+    QLineEdit, QPushButton, QFileDialog, QTextEdit, QCheckBox, QProgressBar, QMessageBox
 )
 from PySide6.QtCore import QThread, Signal
 
+# Absolute import to avoid "no known parent package"
 from mailcombine.cli import main as cli_main
 
+LOG_NAME = "msgsecure_startup.log"
+
+def _log_path() -> Path:
+    try:
+        # when frozen, sys.executable is the exe; when not, fall back to cwd
+        base = Path(getattr(sys, "frozen", False) and sys.executable or __file__).resolve()
+        return Path(base).parent / LOG_NAME
+    except Exception:
+        return Path.cwd() / LOG_NAME
+
+def log_line(text: str):
+    try:
+        with open(_log_path(), "a", encoding="utf-8") as f:
+            f.write(text.rstrip() + "\n")
+    except Exception:
+        pass
 
 class Worker(QThread):
     done = Signal(int)
@@ -35,14 +53,16 @@ class Worker(QThread):
             rc = cli_main(argv)
         except SystemExit as e:
             rc = int(e.code)
-        except Exception:
+        except Exception as e:
+            log_line("[FATAL] cli_main crashed: " + repr(e))
+            log_line(traceback.format_exc())
             rc = 1
         self.done.emit(rc)
 
 class App(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("MsgSecure")
+        self.setWindowTitle("msgsecure")
         self.resize(780, 540)
 
         lay = QVBoxLayout(self)
@@ -89,6 +109,8 @@ class App(QWidget):
         if path: self.out_edit.setText(path)
 
     def run_task(self):
+        import tempfile, time
+        from pathlib import Path
         inp = self.in_edit.text().strip()
         outp = self.out_edit.text().strip() or str(Path.cwd() / "combined_emails.txt")
         self.progress_path = str(Path(tempfile.gettempdir()) / f"mailcombine_progress_{int(time.time())}.jsonl")
@@ -104,6 +126,7 @@ class App(QWidget):
         threading.Thread(target=self.poll_progress, daemon=True).start()
 
     def poll_progress(self):
+        from pathlib import Path
         total_known = None; processed = 0; pst_mode = False
         self.set_busy(True)
         last_text = ""
@@ -139,8 +162,8 @@ class App(QWidget):
                                 self.set_busy(False); self.progress.setValue(100)
                                 self.log_append(f"[DONE] processed={msg.get('processed',0)} errors={msg.get('errors',0)}")
                                 self._stop_poll.set(); break
-            except Exception:
-                pass
+            except Exception as e:
+                log_line("[poll_progress] " + repr(e))
             time.sleep(0.2)
 
     def set_busy(self, busy: bool):
@@ -150,7 +173,8 @@ class App(QWidget):
         pct = max(0, min(100, int(processed * 100 / max(1, total))))
         self.progress.setValue(pct)
 
-    def log_append(self, text: str): self.log.append(text)
+    def log_append(self, text: str):
+        self.log.append(text)
 
     def on_done(self, rc: int):
         self.log.append(f"[EXIT] Code {rc}")
@@ -158,6 +182,29 @@ class App(QWidget):
         self._stop_poll.set()
 
 def main():
+    # Ensure frozen multiprocessing works on Windows
+    import multiprocessing
+    multiprocessing.freeze_support()
+
     app = QApplication(sys.argv)
-    w = App(); w.show()
+    w = App()
+    w.show()
+    # early visual confirmation in case of slow startup
+    log_line("[INFO] QApplication started; main window shown")
     sys.exit(app.exec())
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        # write error to log and attempt to show a dialog
+        log_line("[FATAL] top-level exception: " + repr(e))
+        log_line(traceback.format_exc())
+        try:
+            # show a simple dialog if possible
+            app = QApplication.instance() or QApplication(sys.argv)
+            QMessageBox.critical(None, "msgsecure - startup error", f"{e}\n\nSee log:\n{_log_path()}")
+        except Exception:
+            pass
+        raise
+
