@@ -1,29 +1,32 @@
 from __future__ import annotations
-import sys
+import sys, json, time, tempfile, threading
 from pathlib import Path
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QFileDialog, QTextEdit, QCheckBox
+    QLineEdit, QPushButton, QFileDialog, QTextEdit, QCheckBox, QProgressBar
 )
 from PySide6.QtCore import Qt, QThread, Signal
 
 from .cli import main as cli_main
 
 class Worker(QThread):
-    log = Signal(str)
     done = Signal(int)
-
-    def __init__(self, input_path: str, output_path: str, show_attachments: bool, write_json: bool):
+    # GUI will poll a progress file written by CLI; we just run CLI here.
+    def __init__(self, input_path: str, output_path: str, show_attachments: bool, write_json: bool, progress_path: str, hashes_csv: str):
         super().__init__()
         self.input_path = input_path
         self.output_path = output_path
         self.show_attachments = show_attachments
         self.write_json = write_json
+        self.progress_path = progress_path
+        self.hashes_csv = hashes_csv
 
     def run(self):
         argv = [
             "-i", self.input_path,
             "-o", self.output_path,
+            "--progress-file", self.progress_path,
+            "--hashes", self.hashes_csv
         ]
         if self.show_attachments:
             argv.append("--attachments")
@@ -33,16 +36,15 @@ class Worker(QThread):
             rc = cli_main(argv)
         except SystemExit as e:
             rc = int(e.code)
-        except Exception as e:
+        except Exception:
             rc = 1
-            self.log.emit(f"[ERROR] {e}")
         self.done.emit(rc)
 
 class App(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Mail Combine")
-        self.resize(720, 480)
+        self.resize(760, 520)
 
         lay = QVBoxLayout(self)
 
@@ -74,6 +76,11 @@ class App(QWidget):
         opt_row.addStretch(1)
         lay.addLayout(opt_row)
 
+        # Progress
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 100)  # will adjust dynamically
+        lay.addWidget(self.progress)
+
         # Run button
         self.run_btn = QPushButton("Run")
         lay.addWidget(self.run_btn)
@@ -88,6 +95,8 @@ class App(QWidget):
         self.out_btn.clicked.connect(self.pick_output)
         self.run_btn.clicked.connect(self.run_task)
 
+        self._stop_poll = threading.Event()
+
     def pick_input(self):
         d = QFileDialog.getExistingDirectory(self, "Select Input Folder")
         if d:
@@ -101,15 +110,97 @@ class App(QWidget):
     def run_task(self):
         inp = self.in_edit.text().strip()
         outp = self.out_edit.text().strip() or str(Path.cwd() / "combined_emails.txt")
-        self.worker = Worker(inp, outp, self.attach_cb.isChecked(), self.json_cb.isChecked())
+
+        # temp files: progress + hashes
+        self.progress_path = str(Path(tempfile.gettempdir()) / f"mailcombine_progress_{int(time.time())}.jsonl")
+        self.hashes_csv = str(Path(outp).with_suffix("").as_posix() + "_hashes.csv")
+
+        self.worker = Worker(inp, outp, self.attach_cb.isChecked(), self.json_cb.isChecked(), self.progress_path, self.hashes_csv)
         self.run_btn.setEnabled(False)
         self.worker.done.connect(self.on_done)
         self.worker.start()
         self.log.append("[INFO] Started…")
+        self._stop_poll.clear()
+        threading.Thread(target=self.poll_progress, daemon=True).start()
+
+    def poll_progress(self):
+        total_known = None
+        processed = 0
+        pst_mode = False  # when True -> indeterminate
+        last_size = 0
+
+        # Indeterminate until we get a scan line
+        self.set_busy(True)
+
+        while not self._stop_poll.is_set():
+            try:
+                p = Path(self.progress_path)
+                if p.exists():
+                    size = p.stat().st_size
+                    if size > last_size:
+                        with open(p, "r", encoding="utf-8") as f:
+                            lines = f.readlines()
+                        # parse from last to end
+                        for line in lines:
+                            try:
+                                msg = json.loads(line)
+                            except Exception:
+                                continue
+                            if msg.get("phase") == "scan":
+                                total_known = int(msg.get("msg", 0)) + int(msg.get("eml", 0))
+                                processed = 0
+                                pst_mode = False
+                                self.log_append(f"[SCAN] msg={msg.get('msg',0)} eml={msg.get('eml',0)} pst={msg.get('pst',0)}")
+                                if total_known <= 0:
+                                    self.set_busy(True)
+                                else:
+                                    self.set_busy(False)
+                                    self.update_progress(processed, total_known)
+                            elif msg.get("phase") == "processed":
+                                processed += 1
+                                if not pst_mode and total_known and total_known > 0:
+                                    self.update_progress(processed, total_known)
+                                else:
+                                    # still busy if totals unknown
+                                    self.set_busy(True)
+                            elif msg.get("phase") == "pst_start":
+                                pst_mode = True
+                                self.set_busy(True)
+                                self.log_append("[INFO] Converting PST…")
+                            elif msg.get("phase") == "pst_extracted":
+                                # optional log
+                                self.log_append(f"[PST] Extracted {msg.get('count',0)} from {msg.get('pst','')}")
+                            elif msg.get("phase") == "pst_skipped":
+                                self.log_append("[WARN] PST skipped (no embedded readpst).")
+                            elif msg.get("phase") == "done":
+                                self.set_busy(False)
+                                # If total_known exists, clamp 100%; otherwise set to 100
+                                self.progress.setValue(100)
+                                self.log_append(f"[DONE] processed={msg.get('processed',0)} errors={msg.get('errors',0)}")
+                                self._stop_poll.set()
+                                break
+                        last_size = size
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+    def set_busy(self, busy: bool):
+        if busy:
+            self.progress.setRange(0, 0)  # indeterminate
+        else:
+            self.progress.setRange(0, 100)
+
+    def update_progress(self, processed, total):
+        pct = max(0, min(100, int(processed * 100 / max(1, total))))
+        self.progress.setValue(pct)
+
+    def log_append(self, text: str):
+        self.log.append(text)
 
     def on_done(self, rc: int):
-        self.log.append(f"[DONE] Exit code {rc}")
+        self.log.append(f"[EXIT] Code {rc}")
         self.run_btn.setEnabled(True)
+        self._stop_poll.set()
 
 def main():
     app = QApplication(sys.argv)
