@@ -41,7 +41,7 @@ class Worker(QThread):
 class App(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("MatterMail")
+        self.setWindowTitle("MsgSecure")
         self.resize(780, 540)
 
         lay = QVBoxLayout(self)
@@ -160,4 +160,3 @@ def main():
     app = QApplication(sys.argv)
     w = App(); w.show()
     sys.exit(app.exec())
-

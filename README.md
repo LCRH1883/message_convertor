@@ -1,12 +1,12 @@
-# MatterMail
+# MsgSecure
 
-MatterMail converts `.msg`, `.eml`, and `.pst` emails into a **single searchable .txt** file, with optional **JSON sidecar** and **hashes.csv**.  
+MsgSecure converts `.msg`, `.eml`, and `.pst` emails into a **single searchable .txt** file, with optional **JSON sidecar** and **hashes.csv**.  
 It ships as a **single-file** portable app on Windows (.exe) and Linux (.AppImage), with **embedded PST (readpst)** support.
 
 ## Quick Use (GUI)
 Just run the app:
-- **Windows:** `mail-combine-win-gui.exe`
-- **Linux:** `Mail-Combine-x86_64.AppImage` (if needed: `chmod +x` then double-click)
+- **Windows:** `msgsecure-win-gui.exe`
+- **Linux:** `MsgSecure-x86_64.AppImage` (if needed: `chmod +x` then double-click)
 
 Pick an input folder, choose an output `.txt`, optionally turn on:
 - Include attachments in text
@@ -25,12 +25,12 @@ Pick an input folder, choose an output `.txt`, optionally turn on:
 ```powershell
 cd packaging/windows
 .\build_win_portable.ps1
-# => dist\mail-combine-win-gui.exe
+# => dist\msgsecure-win-gui.exe
 
 Linux portable AppImage
 cd packaging/linux
 bash build_linux_appimage.sh
-# => dist/Mail-Combine-x86_64.AppImage
+# => dist/MsgSecure-x86_64.AppImage
 
 CLI (optional)
 python -m venv .venv && source .venv/bin/activate
@@ -68,4 +68,3 @@ sha256sum /path/to/file
 Match the computed hash to the sha256 column in *_hashes.csv. If it matches, integrity is verified.
 
 ```
-

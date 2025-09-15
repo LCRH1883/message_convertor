@@ -1,9 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=MatterMail
+Name=MsgSecure
 Comment=Convert MSG/EML/PST into one searchable TXT (GUI)
-Exec=mail-combine-linux-gui
-Icon=mail-combine
+Exec=msgsecure-linux-gui
+Icon=msgsecure_logo
 Terminal=false
 Categories=Office;Utility;
-

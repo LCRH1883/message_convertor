@@ -33,7 +33,6 @@ pip install -r requirements-gui.txt pyinstaller
 # Build onefile GUI EXE
 pyinstaller build_windows_gui.spec
 
-$artifact = "dist\mail-combine-win-gui.exe"
+$artifact = "dist\msgsecure-win-gui.exe"
 if (-not (Test-Path $artifact)) { Write-Error "Build failed: $artifact missing." }
 Write-Host "✅ Portable ready: $artifact" -ForegroundColor Green
-

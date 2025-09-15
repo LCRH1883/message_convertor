@@ -18,8 +18,7 @@ exe = EXE(
     a.binaries,
     a.zipfiles,
     a.datas,
-    name='mail-combine-linux-gui',
+    name='msgsecure-linux-gui',
     console=False,   # GUI app
-    onefile=True
+    onefile=False
 )
-
