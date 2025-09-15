@@ -3,8 +3,8 @@ import sys, argparse, tempfile, traceback, json, csv
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-from .writer import write_record, write_header
-from .extractors import (
+from mailcombine.writer import write_record, write_header
+from mailcombine.extractors import (
     extract_from_msg, extract_from_eml,
     iter_eml_paths_from_pst, has_embedded_readpst
 )
@@ -177,4 +177,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
