@@ -1,5 +1,5 @@
 from __future__ import annotations
-import os, sys, tempfile, subprocess, platform, shutil, re
+import os, sys, tempfile, subprocess, platform, shutil, re, hashlib
 from pathlib import Path
 from importlib.resources import files as pkg_files
 
@@ -37,6 +37,23 @@ def try_getattr(obj, name, default=None):
     except Exception:
         return default
 
+def _sha256_bytes(data: bytes | None) -> str | None:
+    if data is None:
+        return None
+    h = hashlib.sha256()
+    h.update(data)
+    return h.hexdigest()
+
+def _sha256_file(path: Path) -> str | None:
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except Exception:
+        return None
+
 # -------- .msg --------
 def extract_from_msg(msg_path: Path) -> dict:
     if extract_msg is None:
@@ -57,7 +74,23 @@ def extract_from_msg(msg_path: Path) -> dict:
         if html_body:
             body = html_to_text(html_body)
 
-    return {
+    # attachments
+    atts = []
+    for a in (getattr(m, "attachments", None) or []):
+        name = getattr(a, "longFilename", None) or getattr(a, "shortFilename", None) or getattr(a, "filename", None) or "attachment"
+        data = None
+        try:
+            data = a.data  # bytes
+        except Exception:
+            try:
+                data = a.getData()
+            except Exception:
+                data = None
+        size = len(data) if isinstance(data, (bytes, bytearray)) else None
+        sha = _sha256_bytes(data) if data else None
+        atts.append({"filename": name, "size": size, "sha256": sha})
+
+    rec = {
         "file": msg_path.name,
         "source": str(msg_path),
         "date": clean_text(date_),
@@ -66,7 +99,10 @@ def extract_from_msg(msg_path: Path) -> dict:
         "subject": clean_text(subject),
         "message_id": clean_text(msgid),
         "body": clean_text(body) if body else "(No Body Extracted)",
+        "attachments": atts,
+        "source_sha256": _sha256_file(msg_path),
     }
+    return rec
 
 # -------- .eml --------
 def extract_from_eml(eml_path: Path) -> dict:
@@ -108,7 +144,21 @@ def extract_from_eml(eml_path: Path) -> dict:
     if not body_text:
         body_text = "(No Body Extracted)"
 
-    return {
+    # attachments with hashes
+    atts = []
+    for part in msg.walk():
+        if part.get_content_disposition() == "attachment":
+            name = part.get_filename() or "attachment"
+            payload = None
+            try:
+                payload = part.get_payload(decode=True)
+            except Exception:
+                payload = None
+            size = len(payload) if isinstance(payload, (bytes, bytearray)) else None
+            sha = _sha256_bytes(payload) if payload else None
+            atts.append({"filename": name, "size": size, "sha256": sha})
+
+    rec = {
         "file": eml_path.name,
         "source": str(eml_path),
         "date": date_,
@@ -117,7 +167,10 @@ def extract_from_eml(eml_path: Path) -> dict:
         "subject": subject,
         "message_id": msgid,
         "body": body_text,
+        "attachments": atts,
+        "source_sha256": _sha256_file(eml_path),
     }
+    return rec
 
 # -------- PST helpers (embedded readpst) --------
 def has_embedded_readpst() -> bool:

@@ -1,11 +1,12 @@
 # mail-combine
 
 Combine `.msg`, `.eml`, and `.pst` messages into a single searchable `.txt` file — **self-contained** builds for Linux and Windows.
+
 - `.msg` parsing via `extract-msg`
 - `.eml` parsing via Python `email` lib
 - `.pst` via an **embedded** `readpst` binary shipped in `mailcombine/resources/<platform>/` (no external installs needed)
-
-> GUI planned: the core is CLI-first; a GUI can be layered later without changing internals.
+- Optional **attachments index** and **JSON sidecar** for chain-of-custody
+- Minimal **GUI** (PySide6) included
 
 ---
 
@@ -26,13 +27,79 @@ pip install -r requirements.txt
 # Linux:   mailcombine/resources/linux64/readpst   (chmod +x)
 # Windows: mailcombine/resources/win64/readpst.exe
 
-# 4) Run
-python -m mailcombine.cli -i /path/to/mail -o combined_emails.txt
+# 4) Run (CLI)
+python -m mailcombine.cli -i /path/to/mail -o combined_emails.txt --attachments --json
 ```
 
-The tool recursively processes `.msg` and `.eml`. If `.pst` files are present:
-- If an embedded `readpst` is found for your platform, they will be converted internally and included.
+The tool recursively processes .msg and .eml. If .pst files are present:
+
+- If an embedded readpst is found for your platform, they are converted internally and included.
 - Otherwise the run continues (PST skipped with a notice).
+
+### Usage (CLI)
+
+```bash
+mail-combine --input /path/to/folder --output combined_emails.txt
+# or from source
+python -m mailcombine.cli --input /path/to/folder --output combined_emails.txt
+```
+
+Options:
+
+-i, --input Root folder to search (recursively). Default: ./msg_files
+
+-o, --output Output text file. Default: combined_emails.txt
+
+--encoding Output encoding (default utf-8)
+
+--attachments Include an ATTACHMENTS section in text output (filename, size, sha256)
+
+--json [path] Write JSON sidecar (default <output>.json)
+
+--no-json Disable JSON sidecar
+
+### Text output example:
+
+```
+==========================================================================================
+FILE: example.msg
+SOURCE: /abs/path/to/example.msg
+DATE: 2024-07-01T12:34:56-07:00
+FROM: Alice <alice@example.com>
+TO: Bob <bob@example.com>
+SUBJECT: Project Update
+MESSAGE-ID: <abc123@example.com>
+ATTACHMENTS:
+  - contract.pdf (45123 bytes) sha256=3f...c1
+
+Body text...
+==========================================================================================
+```
+
+### JSON sidecar structure:
+
+```json
+{
+  "source_root": "...",
+  "output_text": "...",
+  "messages": [
+    {
+      "file": "...",
+      "source": "...",          // For PST-derived: "pst_path :: extracted_eml_path"
+      "date": "...",
+      "from": "...",
+      "to": "...",
+      "subject": "...",
+      "message_id": "...",
+      "body": "...",
+      "attachments": [
+        {"filename": "file.pdf", "size": 12345, "sha256": "..."}
+      ],
+      "source_sha256": "..."    // sha256 of original .msg/.eml file
+    }
+  ]
+}
+```
 
 ---
 
@@ -46,59 +113,35 @@ bash build_linux.sh
 
 ### Windows (PowerShell):
 ```powershell
-.uild_windows.ps1
+.\build_windows.ps1
 # output: dist\mail-combine-win.exe
 ```
 
-> Both builds include *only* the platform's embedded `readpst`. Ship the correct binary in `mailcombine/resources/<platform>/` before building.
+### GUI builds:
+
+- Linux GUI: `pyinstaller build_linux_gui.spec` → `dist/mail-combine-linux-gui`
+- Windows GUI: `pyinstaller build_windows_gui.spec` → `dist\mail-combine-win-gui.exe`
+
+Both builds include only the platform's embedded readpst. Place it in `mailcombine/resources/<platform>/` before building.
 
 ---
 
-## Usage
-
-```bash
-mail-combine --input /path/to/folder --output combined_emails.txt
-# or from source
-python -m mailcombine.cli --input /path/to/folder --output combined_emails.txt
-```
-
-Options:
-- `-i, --input`   Root folder to search (recursively) for `.msg/.eml/.pst`. Default: `./msg_files`
-- `-o, --output`  Output text file. Default: `combined_emails.txt`
-- `--encoding`    Output encoding (default `utf-8`)
-
-Output format (legal-friendly):
-```
-==========================================================================================
-FILE: example.msg
-SOURCE: /abs/path/to/example.msg
-DATE: 2024-07-01T12:34:56-07:00
-FROM: Alice <alice@example.com>
-TO: Bob <bob@example.com>
-SUBJECT: Project Update
-MESSAGE-ID: <abc123@example.com>
-
-Body text...
-==========================================================================================
-```
-
----
-
-## Repository layout
+## Repo layout
 
 ```
 mail-combine/
 ├─ mailcombine/
 │  ├─ __init__.py
 │  ├─ cli.py
+│  ├─ gui.py
 │  ├─ extractors.py
 │  ├─ writer.py
 │  └─ resources/
-│     ├─ linux64/readpst        # (optional; you provide)
-│     └─ win64/readpst.exe      # (optional; you provide)
+│     ├─ linux64/readpst
+│     └─ win64/readpst.exe
 ├─ requirements.txt
-├─ build_linux.spec
-├─ build_windows.spec
+├─ requirements-gui.txt
+├─ build_*.spec
 ├─ build_linux.sh
 ├─ build_windows.ps1
 ├─ .gitignore
@@ -109,5 +152,5 @@ mail-combine/
 
 ## Notes
 
-- If you need an attachments index (filenames or text from `.txt/.csv` attachments), open an issue or extend `extractors.py` with an `--list-attachments` flag. The writer is already modular.
-- For chain-of-custody, consider adding a JSON sidecar with file hashes (e.g., `--hashes sha256`).
+If you need to export hashes.csv or add a progress bar to the GUI, open an issue or extend gui.py and writer.py.
+
