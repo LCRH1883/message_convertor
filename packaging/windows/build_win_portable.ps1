@@ -2,23 +2,38 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot\..\..
 
-# 1) venv + GUI deps + PyInstaller
-if (-not (Test-Path ".venv")) { python -m venv .venv }
-\.\.venv\Scripts\Activate.ps1
+function Find-Python {
+  $candidates = @(
+    { & py -3.12 --version *> $null; if ($LASTEXITCODE -eq 0) { "py -3.12" } },
+    { & py -3 --version   *> $null; if ($LASTEXITCODE -eq 0) { "py -3"   } },
+    { & python --version  *> $null; if ($LASTEXITCODE -eq 0) { "python"  } },
+    { & python3 --version *> $null; if ($LASTEXITCODE -eq 0) { "python3" } }
+  )
+  foreach ($probe in $candidates) { $cmd = & $probe; if ($cmd) { return $cmd } }
+  return $null
+}
+
+$pyCmd = Find-Python
+if (-not $pyCmd) {
+  Write-Error "Python not found. Install Python 3.12 (64-bit), add to PATH, then re-run."
+}
+
+# REQUIRE PST support present at build time
+$readpst = "mailcombine\resources\win64\readpst.exe"
+if (-not (Test-Path $readpst)) {
+  Write-Error "Missing $readpst. Place readpst.exe there before building."
+}
+
+# venv + deps
+if (-not (Test-Path ".venv")) { & $pyCmd -m venv .venv }
+. .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements-gui.txt pyinstaller
 
-# 2) PST support check (optional)
-if (-not (Test-Path "mailcombine\resources\win64\readpst.exe")) {
-  Write-Warning "readpst.exe not found. PST files will be skipped in the portable EXE."
-}
-
-# 3) Build onefile GUI EXE
+# Build onefile GUI EXE
 pyinstaller build_windows_gui.spec
 
-# 4) Verify artifact
-if (-not (Test-Path "dist\mail-combine-win-gui.exe")) {
-  throw "Build failed: dist\mail-combine-win-gui.exe was not created."
-}
-Write-Host "✅ Portable ready: dist\mail-combine-win-gui.exe" -ForegroundColor Green
+$artifact = "dist\mail-combine-win-gui.exe"
+if (-not (Test-Path $artifact)) { Write-Error "Build failed: $artifact missing." }
+Write-Host "✅ Portable ready: $artifact" -ForegroundColor Green
 

@@ -1,162 +1,71 @@
-# mail-combine
+# MatterMail
 
-Combine `.msg`, `.eml`, and `.pst` messages into a single searchable `.txt` file — **self-contained** builds for Linux and Windows.
+MatterMail converts `.msg`, `.eml`, and `.pst` emails into a **single searchable .txt** file, with optional **JSON sidecar** and **hashes.csv**.  
+It ships as a **single-file** portable app on Windows (.exe) and Linux (.AppImage), with **embedded PST (readpst)** support.
 
-- `.msg` parsing via `extract-msg`
-- `.eml` parsing via Python `email` lib
-- `.pst` via an **embedded** `readpst` binary shipped in `mailcombine/resources/<platform>/` (no external installs needed)
-- Optional **attachments index** and **JSON sidecar** for chain-of-custody
-- Minimal **GUI** (PySide6) included
+## Quick Use (GUI)
+Just run the app:
+- **Windows:** `mail-combine-win-gui.exe`
+- **Linux:** `Mail-Combine-x86_64.AppImage` (if needed: `chmod +x` then double-click)
 
----
+Pick an input folder, choose an output `.txt`, optionally turn on:
+- Include attachments in text
+- Write JSON sidecar
+- Write hashes.csv (SHA-256)
 
-## Quick Start (from source)
+## Building the portable apps (dev)
 
-```bash
-# 1) Clone and enter
-git clone <your-repo-url>.git
-cd mail-combine
+### Prereqs
+- Place PST converters in these paths **before building**:
+  - Windows: `mailcombine/resources/win64/readpst.exe`
+  - Linux: `mailcombine/resources/linux64/readpst` (make executable: `chmod +x`)
+- Python 3.10+ on the build machine
 
-# 2) Create a venv and install deps
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# 3) (Optional) add embedded readpst binaries
-# Linux:   mailcombine/resources/linux64/readpst   (chmod +x)
-# Windows: mailcombine/resources/win64/readpst.exe
-
-# 4) Run (CLI)
-python -m mailcombine.cli -i /path/to/mail -o combined_emails.txt --attachments --json
-```
-
-The tool recursively processes .msg and .eml. If .pst files are present:
-
-- If an embedded readpst is found for your platform, they are converted internally and included.
-- Otherwise the run continues (PST skipped with a notice).
-
-### Usage (CLI)
-
-```bash
-mail-combine --input /path/to/folder --output combined_emails.txt
-# or from source
-python -m mailcombine.cli --input /path/to/folder --output combined_emails.txt
-```
-
-Options:
-
--i, --input Root folder to search (recursively). Default: ./msg_files
-
--o, --output Output text file. Default: combined_emails.txt
-
---encoding Output encoding (default utf-8)
-
---attachments Include an ATTACHMENTS section in text output (filename, size, sha256)
-
---json [path] Write JSON sidecar (default <output>.json)
-
---no-json Disable JSON sidecar
-
-### New options:
-
---hashes [path] write a CSV (`type,parent_source,filename,size,sha256`) with message and attachment hashes (default <output>_hashes.csv)
-
---progress-file <path> write JSONL progress for GUI/monitoring (events: scan, processed, pst_start, pst_extracted, pst_skipped, done)
-
-### GUI note:
-
-The GUI shows a determinate progress bar while processing `.msg/.eml` (known totals) and switches to indeterminate during `.pst` conversion (unknown upfront). It finishes at 100% when the CLI signals `phase=done`.
-
-### Text output example:
-
-```
-==========================================================================================
-FILE: example.msg
-SOURCE: /abs/path/to/example.msg
-DATE: 2024-07-01T12:34:56-07:00
-FROM: Alice <alice@example.com>
-TO: Bob <bob@example.com>
-SUBJECT: Project Update
-MESSAGE-ID: <abc123@example.com>
-ATTACHMENTS:
-  - contract.pdf (45123 bytes) sha256=3f...c1
-
-Body text...
-==========================================================================================
-```
-
-### JSON sidecar structure:
-
-```json
-{
-  "source_root": "...",
-  "output_text": "...",
-  "messages": [
-    {
-      "file": "...",
-      "source": "...",          // For PST-derived: "pst_path :: extracted_eml_path"
-      "date": "...",
-      "from": "...",
-      "to": "...",
-      "subject": "...",
-      "message_id": "...",
-      "body": "...",
-      "attachments": [
-        {"filename": "file.pdf", "size": 12345, "sha256": "..."}
-      ],
-      "source_sha256": "..."    // sha256 of original .msg/.eml file
-    }
-  ]
-}
-```
-
----
-
-## Build Self-Contained Binaries (PyInstaller)
-
-### Linux (Ubuntu):
-```bash
-bash build_linux.sh
-# output: dist/mail-combine-linux
-```
-
-### Windows (PowerShell):
+### Windows portable EXE
 ```powershell
-.\build_windows.ps1
-# output: dist\mail-combine-win.exe
+cd packaging/windows
+.\build_win_portable.ps1
+# => dist\mail-combine-win-gui.exe
+
+Linux portable AppImage
+cd packaging/linux
+bash build_linux_appimage.sh
+# => dist/Mail-Combine-x86_64.AppImage
+
+CLI (optional)
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-gui.txt
+python -m mailcombine.gui                # GUI
+# or:
+python -m mailcombine.cli -i samples -o combined_emails.txt --attachments --json --hashes
+
+CLI options
+
+--attachments — include attachment list (name, size, sha256) in text
+
+--json [path] — write JSON sidecar (default <output>.json)
+
+--no-json — disable JSON sidecar
+
+--hashes — write hashes CSV (default <output>_hashes.csv)
+
+--hashes-path PATH — custom hashes CSV path
+
+--progress-file PATH — machine-readable JSONL progress (for GUI/monitoring)
+
+Verifying hashes later
+
+Windows (PowerShell):
+
+Get-FileHash -Algorithm SHA256 "C:\path\to\file"
+
+
+Linux/macOS:
+
+sha256sum /path/to/file
+
+
+Match the computed hash to the sha256 column in *_hashes.csv. If it matches, integrity is verified.
+
 ```
-
-### GUI builds:
-
-- Linux GUI: `pyinstaller build_linux_gui.spec` → `dist/mail-combine-linux-gui`
-- Windows GUI: `pyinstaller build_windows_gui.spec` → `dist\mail-combine-win-gui.exe`
-
-Both builds include only the platform's embedded readpst. Place it in `mailcombine/resources/<platform>/` before building.
-
----
-
-## Repo layout
-
-```
-mail-combine/
-├─ mailcombine/
-│  ├─ __init__.py
-│  ├─ cli.py
-│  ├─ gui.py
-│  ├─ extractors.py
-│  ├─ writer.py
-│  └─ resources/
-│     ├─ linux64/readpst
-│     └─ win64/readpst.exe
-├─ requirements.txt
-├─ requirements-gui.txt
-├─ build_*.spec
-├─ build_linux.sh
-├─ build_windows.ps1
-├─ .gitignore
-└─ LICENSE
-```
-
----
 

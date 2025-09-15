@@ -3,7 +3,6 @@ import os, sys, tempfile, subprocess, platform, shutil, re, hashlib
 from pathlib import Path
 from importlib.resources import files as pkg_files
 
-# Optional import; only needed for .msg
 try:
     import extract_msg
 except ImportError:
@@ -23,8 +22,7 @@ def clean_text(s):
     return s.replace("\r\n", "\n").replace("\r", "\n").strip()
 
 def html_to_text(html: str) -> str:
-    if not html:
-        return ""
+    if not html: return ""
     textish = re.sub(r"(?is)<(script|style).*?</\1>", "", html)
     textish = re.sub(r"(?is)<br\s*/?>", "\n", textish)
     textish = re.sub(r"(?is)</p\s*>", "\n\n", textish)
@@ -32,32 +30,26 @@ def html_to_text(html: str) -> str:
     return clean_text(textish)
 
 def try_getattr(obj, name, default=None):
-    try:
-        return getattr(obj, name)
-    except Exception:
-        return default
+    try: return getattr(obj, name)
+    except Exception: return default
 
 def _sha256_bytes(data: bytes | None) -> str | None:
-    if data is None:
-        return None
-    h = hashlib.sha256()
-    h.update(data)
-    return h.hexdigest()
+    if data is None: return None
+    h = hashlib.sha256(); h.update(data); return h.hexdigest()
 
 def _sha256_file(path: Path) -> str | None:
     try:
         h = hashlib.sha256()
         with open(path, "rb") as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                h.update(chunk)
+            for chunk in iter(lambda: f.read(1024*1024), b""): h.update(chunk)
         return h.hexdigest()
     except Exception:
         return None
 
-# -------- .msg --------
+# ---- .msg ----
 def extract_from_msg(msg_path: Path) -> dict:
     if extract_msg is None:
-        raise RuntimeError("The 'extract-msg' package is not installed. Install dependencies and retry.")
+        raise RuntimeError("The 'extract-msg' package is not installed.")
     m = extract_msg.Message(str(msg_path))
 
     date_raw = try_getattr(m, "date", "")
@@ -71,26 +63,21 @@ def extract_from_msg(msg_path: Path) -> dict:
     body = try_getattr(m, "body", "") or ""
     if not body:
         html_body = try_getattr(m, "htmlBody", "") or ""
-        if html_body:
-            body = html_to_text(html_body)
+        if html_body: body = html_to_text(html_body)
 
-    # attachments
     atts = []
     for a in (getattr(m, "attachments", None) or []):
         name = getattr(a, "longFilename", None) or getattr(a, "shortFilename", None) or getattr(a, "filename", None) or "attachment"
         data = None
-        try:
-            data = a.data  # bytes
+        try: data = a.data
         except Exception:
-            try:
-                data = a.getData()
-            except Exception:
-                data = None
+            try: data = a.getData()
+            except Exception: data = None
         size = len(data) if isinstance(data, (bytes, bytearray)) else None
         sha = _sha256_bytes(data) if data else None
         atts.append({"filename": name, "size": size, "sha256": sha})
 
-    rec = {
+    return {
         "file": msg_path.name,
         "source": str(msg_path),
         "date": clean_text(date_),
@@ -102,14 +89,12 @@ def extract_from_msg(msg_path: Path) -> dict:
         "attachments": atts,
         "source_sha256": _sha256_file(msg_path),
     }
-    return rec
 
-# -------- .eml --------
+# ---- .eml ----
 def extract_from_eml(eml_path: Path) -> dict:
     import email
     from email import policy
     from email.parser import BytesParser
-
     with open(eml_path, "rb") as f:
         msg = BytesParser(policy=policy.default).parse(f)
 
@@ -122,43 +107,32 @@ def extract_from_eml(eml_path: Path) -> dict:
     body_text = ""
     if msg.is_multipart():
         for part in msg.walk():
-            if part.get_content_disposition() == "attachment":
-                continue
+            if part.get_content_disposition() == "attachment": continue
             if part.get_content_type() == "text/plain":
-                body_text = clean_text(part.get_content())
-                break
+                body_text = clean_text(part.get_content()); break
         if not body_text:
             for part in msg.walk():
-                if part.get_content_disposition() == "attachment":
-                    continue
+                if part.get_content_disposition() == "attachment": continue
                 if part.get_content_type() == "text/html":
-                    body_text = html_to_text(part.get_content())
-                    break
+                    body_text = html_to_text(part.get_content()); break
     else:
         ctype = msg.get_content_type()
-        if ctype == "text/plain":
-            body_text = clean_text(msg.get_content())
-        elif ctype == "text/html":
-            body_text = html_to_text(msg.get_content())
+        if ctype == "text/plain": body_text = clean_text(msg.get_content())
+        elif ctype == "text/html": body_text = html_to_text(msg.get_content())
+    if not body_text: body_text = "(No Body Extracted)"
 
-    if not body_text:
-        body_text = "(No Body Extracted)"
-
-    # attachments with hashes
     atts = []
     for part in msg.walk():
         if part.get_content_disposition() == "attachment":
             name = part.get_filename() or "attachment"
             payload = None
-            try:
-                payload = part.get_payload(decode=True)
-            except Exception:
-                payload = None
+            try: payload = part.get_payload(decode=True)
+            except Exception: payload = None
             size = len(payload) if isinstance(payload, (bytes, bytearray)) else None
             sha = _sha256_bytes(payload) if payload else None
             atts.append({"filename": name, "size": size, "sha256": sha})
 
-    rec = {
+    return {
         "file": eml_path.name,
         "source": str(eml_path),
         "date": date_,
@@ -170,25 +144,20 @@ def extract_from_eml(eml_path: Path) -> dict:
         "attachments": atts,
         "source_sha256": _sha256_file(eml_path),
     }
-    return rec
 
-# -------- PST helpers (embedded readpst) --------
+# ---- PST (embedded readpst) ----
 def has_embedded_readpst() -> bool:
     return _get_embedded_readpst_path() is not None
 
 def _get_embedded_readpst_path():
     system = platform.system().lower()
-    arch = platform.machine().lower()
     base = pkg_files("mailcombine.resources")
-
-    arch_label = "64" if ("x86_64" in arch or "amd64" in arch) else "64"
     if system.startswith("win"):
-        rel = Path(f"win{arch_label}") / "readpst.exe"
+        rel = Path("win64") / "readpst.exe"
     elif system.startswith("linux"):
-        rel = Path(f"linux{arch_label}") / "readpst"
+        rel = Path("linux64") / "readpst"
     else:
         return None
-
     p = base / rel
     return Path(p) if p.is_file() else None
 
@@ -198,8 +167,7 @@ def _stage_readpst_to_temp() -> Path:
         raise RuntimeError("PST support is not available in this build (embedded readpst missing).")
     tdir = Path(tempfile.mkdtemp(prefix="readpst_"))
     dst = tdir / src.name
-    with open(src, "rb") as fsrc, open(dst, "wb") as fdst:
-        shutil.copyfileobj(fsrc, fdst)
+    with open(src, "rb") as fsrc, open(dst, "wb") as fdst: shutil.copyfileobj(fsrc, fdst)
     if platform.system().lower().startswith("linux"):
         os.chmod(dst, 0o755)
     return dst
@@ -218,3 +186,4 @@ def iter_eml_paths_from_pst(pst_path: Path, temp_root: Path):
         )
     for p in sorted(out_dir.rglob("*.eml")):
         yield p
+

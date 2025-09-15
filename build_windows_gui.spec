@@ -1,4 +1,3 @@
-
 # PyInstaller spec for Windows GUI onefile
 from PyInstaller.utils.hooks import collect_data_files
 

@@ -32,3 +32,4 @@ def write_header(out, source_root: str):
         f"# Source: {source_root}\n\n"
     )
     out.write(header)
+
