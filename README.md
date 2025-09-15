@@ -103,13 +103,56 @@ Body text...
       "message_id": "...",
       "body": "...",
       "attachments": [
-        {"filename": "file.pdf", "size": 12345, "sha256": "..."}
+{"filename": "file.pdf", "size": 12345, "sha256": "..."}
       ],
       "source_sha256": "..."    // sha256 of original .msg/.eml file
     }
   ]
 }
 ```
+
+### Enable hashes (optional)
+
+```bash
+# default CSV path: <output>_hashes.csv
+python -m mailcombine.cli -i /path/to/mail -o combined_emails.txt --hashes
+
+# custom CSV path:
+python -m mailcombine.cli -i /path/to/mail -o combined_emails.txt --hashes --hashes-path /evidence/report_hashes.csv
+```
+
+#### What the CSV contains
+
+```
+type,parent_source,filename,size,sha256
+message,/path/mail/RE_meeting.msg,RE_meeting.msg,,89f3...c1b2
+attachment,/path/mail/RE_meeting.msg,contract.pdf,45123,3a77...9d0e
+```
+
+- **type**: message or attachment  
+- **parent_source**: the file it came from (PST-derived shows `pst_path :: extracted_eml_path`)  
+- **filename**: item name  
+- **size**: bytes (attachments); empty for message rows  
+- **sha256**: fingerprint (content hash)
+
+#### Verify hashes (later)
+
+**Linux/macOS**
+
+```bash
+# compute a file's hash
+sha256sum /path/to/file
+# compare to the CSV’s sha256 value
+```
+
+**Windows (PowerShell)**
+
+```powershell
+Get-FileHash -Algorithm SHA256 "C:\path\to\file"
+# Compare the "Hash" field to the CSV’s sha256 column
+```
+
+If the computed hash matches the CSV entry, the file is unchanged (integrity verified). If it differs, the content has changed.
 
 ---
 

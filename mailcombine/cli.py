@@ -9,6 +9,7 @@ from .extractors import (
     iter_eml_paths_from_pst, has_embedded_readpst
 )
 
+
 def _progress_emit(progress_path: Optional[Path], payload: dict) -> None:
     if not progress_path:
         return
@@ -16,8 +17,8 @@ def _progress_emit(progress_path: Optional[Path], payload: dict) -> None:
         with open(progress_path, "a", encoding="utf-8") as pf:
             pf.write(json.dumps(payload, ensure_ascii=False) + "\n")
     except Exception:
-        # progress is best-effort; ignore errors
-        pass
+        pass  # best-effort
+
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
@@ -29,21 +30,35 @@ def main(argv=None):
     parser.add_argument("--attachments", action="store_true", help="Also list attachments in the text output")
     parser.add_argument("--json", dest="json_path", default=None, help="Write JSON sidecar log to this path (default: <output>.json)")
     parser.add_argument("--no-json", dest="no_json", action="store_true", help="Disable JSON sidecar logging")
-    parser.add_argument("--hashes", dest="hashes_csv", default=None, help="Write CSV of file/attachment hashes (default: <output>_hashes.csv)")
+
+    # ✅ Hashes now selectable (OFF by default)
+    parser.add_argument("--hashes", action="store_true", help="Write a CSV of message/attachment SHA-256 hashes (default path: <output>_hashes.csv)")
+    parser.add_argument("--hashes-path", dest="hashes_path", default=None, help="Custom path for the hashes CSV (implies --hashes)")
+
+    # Progress JSONL for GUI/monitoring (optional)
     parser.add_argument("--progress-file", dest="progress_file", default=None, help="Write JSONL progress updates for GUI/monitoring")
+
     args = parser.parse_args(argv)
 
     in_dir = Path(args.input).expanduser().resolve()
     out_path = Path(args.output).expanduser().resolve()
+
+    # JSON sidecar path (optional, enabled unless --no-json)
     json_path = None if args.no_json else (Path(args.json_path).expanduser().resolve() if args.json_path else Path(str(out_path) + ".json"))
-    hashes_path: Optional[Path] = Path(args.hashes_csv).expanduser().resolve() if args.hashes_csv else Path(str(out_path).rsplit(".", 1)[0] + "_hashes.csv")
+
+    # Hashes CSV path (only if enabled)
+    hashes_enabled = bool(args.hashes or args.hashes_path)
+    hashes_path: Optional[Path] = None
+    if hashes_enabled:
+        hashes_path = Path(args.hashes_path).expanduser().resolve() if args.hashes_path else Path(str(out_path).rsplit(".", 1)[0] + "_hashes.csv")
+
     progress_path: Optional[Path] = Path(args.progress_file).expanduser().resolve() if args.progress_file else None
 
     print(f"[INFO] Input folder: {in_dir}")
     print(f"[INFO] Output file : {out_path}")
     if json_path and not args.no_json:
         print(f"[INFO] JSON log    : {json_path}")
-    if hashes_path:
+    if hashes_enabled and hashes_path:
         print(f"[INFO] Hashes CSV  : {hashes_path}")
     if not in_dir.exists():
         print(f"[ERROR] Input folder does not exist: {in_dir}")
@@ -55,18 +70,22 @@ def main(argv=None):
 
     print(f"[INFO] Found {len(msg_files)} .msg, {len(eml_files)} .eml, {len(pst_files)} .pst")
 
-    # Progress init (known totals for msg/eml; PST is unknown upfront)
+    # Progress init
     if progress_path and progress_path.exists():
-        progress_path.unlink(missing_ok=True)
+        try:
+            progress_path.unlink()
+        except Exception:
+            pass
     _progress_emit(progress_path, {"phase": "scan", "msg": len(msg_files), "eml": len(eml_files), "pst": len(pst_files)})
 
     processed = 0
     errors = 0
     json_records: List[Dict[str, Any]] = []
-    hash_rows: List[List[str]] = []  # type, parent_source, filename, size, sha256
+    hash_rows: List[List[str]] = []  # type,parent_source,filename,size,sha256
 
     def _add_hash_row(row_type: str, parent_source: str, filename: str, size: Any, sha256: str | None):
-        hash_rows.append([row_type, parent_source, filename, str(size if size is not None else ""), sha256 or ""])
+        if hashes_enabled:
+            hash_rows.append([row_type, parent_source, filename, str(size if size is not None else ""), sha256 or ""])
 
     with open(out_path, "w", encoding=args.encoding, errors="replace") as out:
         write_header(out, str(in_dir))
@@ -80,7 +99,6 @@ def main(argv=None):
                 json_records.append(rec)
                 processed += 1
                 _progress_emit(progress_path, {"phase": "processed", "kind": "msg", "file": str(p), "processed": processed})
-                # hashes
                 _add_hash_row("message", rec["source"], rec["file"], None, rec.get("source_sha256"))
                 for a in rec.get("attachments", []) or []:
                     _add_hash_row("attachment", rec["source"], a.get("filename",""), a.get("size"), a.get("sha256"))
@@ -101,7 +119,6 @@ def main(argv=None):
                 json_records.append(rec)
                 processed += 1
                 _progress_emit(progress_path, {"phase": "processed", "kind": "eml", "file": str(p), "processed": processed})
-                # hashes
                 _add_hash_row("message", rec["source"], rec["file"], None, rec.get("source_sha256"))
                 for a in rec.get("attachments", []) or []:
                     _add_hash_row("attachment", rec["source"], a.get("filename",""), a.get("size"), a.get("sha256"))
@@ -136,7 +153,6 @@ def main(argv=None):
                                     json_records.append(rec)
                                     processed += 1
                                     _progress_emit(progress_path, {"phase": "processed", "kind": "pst-eml", "file": str(eml), "processed": processed})
-                                    # hashes (we don't hash the PST as a whole here; just the extracted items)
                                     _add_hash_row("message", rec["source"], rec["file"], None, rec.get("source_sha256"))
                                     for a in rec.get("attachments", []) or []:
                                         _add_hash_row("attachment", rec["source"], a.get("filename",""), a.get("size"), a.get("sha256"))
@@ -155,7 +171,7 @@ def main(argv=None):
                             out.write("="*90 + "\n\n")
                             print(f"[ERROR] Failed .pst: {pst}")
 
-    # Write JSON sidecar
+    # JSON sidecar (optional)
     if (not args.no_json) and json_records:
         try:
             with open(json_path, "w", encoding="utf-8") as jf:
@@ -168,8 +184,8 @@ def main(argv=None):
         except Exception as e:
             print(f"[WARN] Could not write JSON log: {e}")
 
-    # Write hashes CSV
-    if hashes_path and hash_rows:
+    # Hashes CSV (only if enabled)
+    if hashes_enabled and hashes_path and hash_rows:
         try:
             with open(hashes_path, "w", newline="", encoding="utf-8") as cf:
                 w = csv.writer(cf)
@@ -185,5 +201,7 @@ def main(argv=None):
         print(f"[NOTE] {errors} item(s) had errors. Details are logged in the output file.")
     return 0
 
+
 if __name__ == "__main__":
     raise SystemExit(main())
+
