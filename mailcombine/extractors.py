@@ -1,7 +1,15 @@
 from __future__ import annotations
-import os, sys, tempfile, subprocess, platform, shutil, re, hashlib
+import sys, os, tempfile, subprocess, platform, shutil, re, hashlib
 from pathlib import Path
-from importlib.resources import files as pkg_files, as_file
+try:
+    from importlib.resources import files as pkg_files, as_file
+except ImportError:  # Python < 3.9
+    try:
+        from importlib_resources import files as pkg_files, as_file  # type: ignore
+    except ImportError:
+        pkg_files = None  # type: ignore
+        as_file = None  # type: ignore
+
 from .extractors_readpst_fallback import resolve_readpst_path
 
 try:
@@ -149,14 +157,23 @@ def extract_from_eml(eml_path: Path) -> dict:
 # ---- PST (embedded readpst) ----
 def has_embedded_readpst() -> bool:
     p = _get_embedded_readpst_path()
-    # print(f"[debug] readpst resolved to: {p}")  # uncomment for quick test
+    if os.environ.get("MSGSECURE_DEBUG"):
+        print(f"[debug] readpst -> {p}")
     return bool(p and Path(p).is_file())
 
 def _get_embedded_readpst_path():
     """
     Return a real Path to the embedded readpst binary if present.
     Tries importlib.resources first, then PyInstaller _MEIPASS fallbacks.
+    Also allows MSGSECURE_READPST to override.
     """
+    # explicit override (let devs force a path)
+    env_override = os.environ.get("MSGSECURE_READPST")
+    if env_override:
+        p = Path(env_override)
+        if p.is_file():
+            return p
+
     system = platform.system().lower()
     plat_dir = "win64" if system.startswith("win") else ("linux64" if system.startswith("linux") else None)
     exe_name = "readpst.exe" if system.startswith("win") else "readpst"
@@ -164,17 +181,18 @@ def _get_embedded_readpst_path():
         return None
 
     # 1) importlib.resources route (works in src and many frozen cases)
-    try:
-        base = pkg_files("mailcombine") / "resources" / plat_dir
-        cand = base / exe_name
-        with as_file(cand) as real_path:
-            rp = Path(real_path)
-            if rp.is_file():
-                return rp
-    except Exception:
-        pass
+    if pkg_files and as_file:
+        try:
+            base = pkg_files("mailcombine") / "resources" / plat_dir
+            cand = base / exe_name
+            with as_file(cand) as real_path:
+                rp = Path(real_path)
+                if rp.is_file():
+                    return rp
+        except Exception:
+            pass
 
-    # 2) PyInstaller onefile extraction dir
+    # 2) PyInstaller _MEIPASS (onefile)
     try:
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
@@ -188,6 +206,12 @@ def _get_embedded_readpst_path():
                     return p
     except Exception:
         pass
+
+    # 3) last-resort: adjacent to this file (onefolder dev runs)
+    here = Path(__file__).resolve().parent
+    fallback = here / "resources" / plat_dir / exe_name
+    if fallback.is_file():
+        return fallback
 
     return None
 
@@ -206,6 +230,8 @@ def _stage_readpst_to_temp() -> Path:
             use_embedded = Path(embedded_src) == resolved_path
 
     if use_embedded:
+        if platform.system().lower().startswith("win"):
+            return resolved_path
         tdir = Path(tempfile.mkdtemp(prefix="readpst_"))
         dst = tdir / resolved_path.name
         with open(embedded_src, "rb") as fsrc, open(dst, "wb") as fdst:

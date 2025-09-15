@@ -1,1 +1,1 @@
-# marker (helps some packagers)
+# package marker

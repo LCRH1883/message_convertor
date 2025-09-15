@@ -1,13 +1,17 @@
 # PyInstaller spec for Windows GUI onefile
 from PyInstaller.utils.hooks import collect_data_files
 
+# 1) normal data collection (will still warn until __init__.py exists)
 datas = collect_data_files('mailcombine', includes=['resources/win64/*'], include_py_files=True)
+
+# 2) HARD include the entire directory (bullet-proof)
+datas = datas + [('mailcombine/resources/win64', 'mailcombine/resources/win64')]
 
 a = Analysis(
     ['mailcombine/gui.py'],
     pathex=[],
     binaries=[],
-    datas=datas,
+    datas=datas,                 # <== MUST be present
     hiddenimports=[],
     noarchive=False
 )
@@ -19,7 +23,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     name='msgsecure-win-gui',
-    console=False,   # GUI app
+    console=False,
     onefile=True
 )
 
