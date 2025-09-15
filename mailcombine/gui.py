@@ -7,7 +7,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QThread, Signal
 
-from .cli import main as cli_main
+from mailcombine.cli import main as cli_main
+
 
 class Worker(QThread):
     done = Signal(int)
