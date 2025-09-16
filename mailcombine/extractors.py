@@ -1,5 +1,6 @@
 from __future__ import annotations
 import sys, os, tempfile, subprocess, platform, shutil, re, hashlib
+import base64
 from pathlib import Path
 try:
     from importlib.resources import files as pkg_files, as_file
@@ -70,21 +71,26 @@ def extract_from_msg(msg_path: Path) -> dict:
     msgid = try_getattr(m, "message_id", "") or ""
 
     body = try_getattr(m, "body", "") or ""
-    if not body:
-        html_body = try_getattr(m, "htmlBody", "") or ""
-        if html_body: body = html_to_text(html_body)
+    body_html = try_getattr(m, "htmlBody", "") or ""
+    if not body and body_html:
+        body = html_to_text(body_html)
 
     atts = []
     for a in (getattr(m, "attachments", None) or []):
         name = getattr(a, "longFilename", None) or getattr(a, "shortFilename", None) or getattr(a, "filename", None) or "attachment"
         data = None
-        try: data = a.data
+        try:
+            data = a.data
         except Exception:
-            try: data = a.getData()
-            except Exception: data = None
+            try:
+                data = a.getData()
+            except Exception:
+                data = None
         size = len(data) if isinstance(data, (bytes, bytearray)) else None
         sha = _sha256_bytes(data) if data else None
-        atts.append({"filename": name, "size": size, "sha256": sha})
+        content_type = getattr(a, "mimetype", None)
+        content_b64 = base64.b64encode(data).decode("ascii") if data else None
+        atts.append({"filename": name, "size": size, "sha256": sha, "content_type": content_type, "content_base64": content_b64})
 
     return {
         "file": msg_path.name,
@@ -95,9 +101,11 @@ def extract_from_msg(msg_path: Path) -> dict:
         "subject": clean_text(subject),
         "message_id": clean_text(msgid),
         "body": clean_text(body) if body else "(No Body Extracted)",
+        "body_html": body_html or None,
         "attachments": atts,
         "source_sha256": _sha256_file(msg_path),
     }
+
 
 # ---- .eml ----
 def extract_from_eml(eml_path: Path) -> dict:
@@ -114,32 +122,44 @@ def extract_from_eml(eml_path: Path) -> dict:
     msgid = clean_text(msg.get("Message-ID"))
 
     body_text = ""
+    body_html = None
+    enriched = None
     if msg.is_multipart():
         for part in msg.walk():
-            if part.get_content_disposition() == "attachment": continue
-            if part.get_content_type() == "text/plain":
-                body_text = clean_text(part.get_content()); break
-        if not body_text:
-            for part in msg.walk():
-                if part.get_content_disposition() == "attachment": continue
-                if part.get_content_type() == "text/html":
-                    body_text = html_to_text(part.get_content()); break
+            if part.get_content_disposition() == "attachment":
+                continue
+            ctype = part.get_content_type()
+            if ctype == "text/html":
+                body_html = part.get_content()
+            elif ctype == "text/plain" and not body_text:
+                body_text = clean_text(part.get_content())
+            elif ctype == "text/enriched" and enriched is None:
+                enriched = part.get_content()
     else:
         ctype = msg.get_content_type()
-        if ctype == "text/plain": body_text = clean_text(msg.get_content())
-        elif ctype == "text/html": body_text = html_to_text(msg.get_content())
-    if not body_text: body_text = "(No Body Extracted)"
+        if ctype == "text/html":
+            body_html = msg.get_content()
+        elif ctype == "text/plain":
+            body_text = clean_text(msg.get_content())
+        elif ctype == "text/enriched":
+            enriched = msg.get_content()
+    if not body_text:
+        body_text = enriched or "(No Body Extracted)"
 
     atts = []
     for part in msg.walk():
         if part.get_content_disposition() == "attachment":
             name = part.get_filename() or "attachment"
             payload = None
-            try: payload = part.get_payload(decode=True)
-            except Exception: payload = None
+            try:
+                payload = part.get_payload(decode=True)
+            except Exception:
+                payload = None
             size = len(payload) if isinstance(payload, (bytes, bytearray)) else None
             sha = _sha256_bytes(payload) if payload else None
-            atts.append({"filename": name, "size": size, "sha256": sha})
+            content_type = part.get_content_type()
+            content_b64 = base64.b64encode(payload).decode("ascii") if payload else None
+            atts.append({"filename": name, "size": size, "sha256": sha, "content_type": content_type, "content_base64": content_b64})
 
     return {
         "file": eml_path.name,
@@ -150,9 +170,11 @@ def extract_from_eml(eml_path: Path) -> dict:
         "subject": subject,
         "message_id": msgid,
         "body": body_text,
+        "body_html": body_html,
         "attachments": atts,
         "source_sha256": _sha256_file(eml_path),
     }
+
 
 # ---- PST (embedded readpst) ----
 def has_embedded_readpst() -> bool:

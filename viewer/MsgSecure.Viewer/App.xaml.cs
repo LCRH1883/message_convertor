@@ -20,6 +20,8 @@ namespace MsgSecure.Viewer
 
         private void OnStartup(object sender, StartupEventArgs e)
         {
+            MessageBox.Show("Starting MsgSecure Viewer…");
+
             _host = Host.CreateDefaultBuilder()
                 .ConfigureServices((context, services) =>
                 {

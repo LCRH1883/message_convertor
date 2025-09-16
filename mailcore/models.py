@@ -21,6 +21,7 @@ class Attachment:
     content_type: Optional[str] = None
     sha256: Optional[str] = None
     source_path: Optional[Path] = None
+    data_base64: Optional[str] = None
 
 
 @dataclass

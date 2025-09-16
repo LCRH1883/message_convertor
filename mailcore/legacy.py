@@ -45,4 +45,3 @@ def message_to_record(message: Message) -> Dict[str, object]:
         "attachments": attachments,
         "source_sha256": sha256_hash,
     }
-
