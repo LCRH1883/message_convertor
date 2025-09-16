@@ -31,9 +31,10 @@ def _folder_to_dict(folder) -> Dict[str, Any]:
         "Id": folder.id,
         "Name": folder.name,
         "Path": folder.path,
-        "Messages": [_message_to_dict(m) for m in folder.messages],
+        "Messages": [message_to_dict(m) for m in folder.messages],
         "Subfolders": [_folder_to_dict(sub) for sub in folder.subfolders],
     }
+
 
 
 def message_to_dict(message: Message) -> Dict[str, Any]:
