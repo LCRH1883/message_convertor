@@ -111,8 +111,8 @@
 - Nightly job publishes installer to internal feed for QA.
 
 ## 5. Next Actions Checklist
-- [ ] Scaffold `mailcore` package + dataclasses.
-- [ ] Relocate exporter logic + update existing CLI imports.
+- [x] Scaffold `mailcore` package + dataclasses.
+- [x] Relocate exporter logic + update existing CLI imports.
 - [ ] Prototype JSON-RPC bridge for WPF to call Python services.
 - [ ] Initialise WPF solution with DI + basic open file command.
 - [ ] Draft export dialog UI and wire to placeholders.

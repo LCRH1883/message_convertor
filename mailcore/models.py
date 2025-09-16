@@ -7,13 +7,13 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 
-@dataclass(slots=True)
+@dataclass
 class HashInfo:
     algorithm: str
     value: str
 
 
-@dataclass(slots=True)
+@dataclass
 class Attachment:
     id: str
     filename: str
@@ -23,19 +23,20 @@ class Attachment:
     source_path: Optional[Path] = None
 
 
-@dataclass(slots=True)
+@dataclass
 class BodyPart:
     content_type: str
     content: str
     charset: Optional[str] = None
 
 
-@dataclass(slots=True)
+@dataclass
 class Message:
     id: str
-    source_path: Path
-    subject: str
-    sender: str
+    source: str
+    source_path: Optional[Path] = None
+    subject: str = ""
+    sender: str = ""
     to: Sequence[str] = field(default_factory=list)
     cc: Sequence[str] = field(default_factory=list)
     bcc: Sequence[str] = field(default_factory=list)
@@ -48,7 +49,7 @@ class Message:
     hashes: List[HashInfo] = field(default_factory=list)
 
 
-@dataclass(slots=True)
+@dataclass
 class Folder:
     id: str
     name: str
@@ -57,7 +58,7 @@ class Folder:
     subfolders: List["Folder"] = field(default_factory=list)
 
 
-@dataclass(slots=True)
+@dataclass
 class Mailbox:
     source_path: Path
     display_name: str

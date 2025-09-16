@@ -28,9 +28,14 @@ def _split_addresses(value: Optional[str]) -> List[str]:
     return [p for p in parts if p]
 
 
-def record_to_message(record: Dict[str, Any]) -> Message:
-    source = Path(record.get("source", record.get("file", "")))
-    message_id = record.get("message_id") or source.stem
+def record_to_message(record: Dict[str, Any], *, source_override: Optional[str] = None) -> Message:
+    raw_source = record.get('source', record.get('file', ''))
+    source_path = Path(raw_source) if raw_source else None
+    if source_override:
+        source_str = source_override
+    else:
+        source_str = raw_source or ''
+    message_id = record.get('message_id') or (source_path.stem if source_path else source_str or 'message')
     body = record.get("body") or ""
 
     attachments_in = record.get("attachments") or []
@@ -54,7 +59,8 @@ def record_to_message(record: Dict[str, Any]) -> Message:
 
     return Message(
         id=str(message_id),
-        source_path=source,
+        source=source_str,
+        source_path=source_path,
         subject=record.get("subject") or "",
         sender=record.get("from") or "",
         to=_split_addresses(record.get("to")),

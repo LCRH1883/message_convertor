@@ -1,13 +1,12 @@
 from __future__ import annotations
-import sys, argparse, tempfile, traceback, json, csv
+import argparse, traceback, json, csv
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from mailcombine.writer import write_record, write_header
-from mailcombine.extractors import (
-    extract_from_msg, extract_from_eml,
-    iter_eml_paths_from_pst, has_embedded_readpst
-)
+from mailcombine.extractors import has_embedded_readpst
+from mailcore import load_single_message, load_mailbox
+from mailcore.legacy import message_to_record
 
 def _progress_emit(progress_path: Optional[Path], payload: dict) -> None:
     if not progress_path: return
@@ -64,7 +63,7 @@ def main(argv=None):
     json_records: List[Dict[str, Any]] = []
     hash_rows: List[List[str]] = []  # type,parent_source,filename,size,sha256
 
-    def _add_hash_row(row_type: str, parent_source: str, filename: str, size: Any, sha256: str | None):
+    def _add_hash_row(row_type: str, parent_source: str, filename: str, size: Any, sha256: Optional[str]):
         if not hashes_enabled: return
         hash_rows.append([row_type, parent_source, filename, str(size if size is not None else ""), sha256 or ""])
 
@@ -75,11 +74,12 @@ def main(argv=None):
         for idx, p in enumerate(msg_files, 1):
             print(f"[INFO] (.msg {idx}/{len(msg_files)}) {p}")
             try:
-                rec = extract_from_msg(p)
+                message = load_single_message(p)
+                rec = message_to_record(message)
                 write_record(out, rec, show_attachments=args.attachments)
                 json_records.append(rec)
                 processed += 1
-                _progress_emit(progress_path, {"phase": "processed", "kind": "msg", "file": str(p), "processed": processed})
+                _progress_emit(progress_path, {"phase": "processed", "kind": "msg", "file": rec["source"], "processed": processed})
                 _add_hash_row("message", rec["source"], rec["file"], None, rec.get("source_sha256"))
                 for a in rec.get("attachments", []) or []:
                     _add_hash_row("attachment", rec["source"], a.get("filename",""), a.get("size"), a.get("sha256"))
@@ -95,11 +95,12 @@ def main(argv=None):
         for idx, p in enumerate(eml_files, 1):
             print(f"[INFO] (.eml {idx}/{len(eml_files)}) {p}")
             try:
-                rec = extract_from_eml(p)
+                message = load_single_message(p)
+                rec = message_to_record(message)
                 write_record(out, rec, show_attachments=args.attachments)
                 json_records.append(rec)
                 processed += 1
-                _progress_emit(progress_path, {"phase": "processed", "kind": "eml", "file": str(p), "processed": processed})
+                _progress_emit(progress_path, {"phase": "processed", "kind": "eml", "file": rec["source"], "processed": processed})
                 _add_hash_row("message", rec["source"], rec["file"], None, rec.get("source_sha256"))
                 for a in rec.get("attachments", []) or []:
                     _add_hash_row("attachment", rec["source"], a.get("filename",""), a.get("size"), a.get("sha256"))
@@ -118,39 +119,37 @@ def main(argv=None):
                 _progress_emit(progress_path, {"phase": "pst_skipped"})
             else:
                 _progress_emit(progress_path, {"phase": "pst_start"})
-                with tempfile.TemporaryDirectory(prefix="pst_extract_") as tdir:
-                    troot = Path(tdir)
-                    for idx, pst in enumerate(pst_files, 1):
-                        print(f"[INFO] (.pst {idx}/{len(pst_files)}) {pst}")
-                        try:
-                            extracted = list(iter_eml_paths_from_pst(pst, troot))
-                            _progress_emit(progress_path, {"phase": "pst_extracted", "pst": str(pst), "count": len(extracted)})
-                            print(f"[INFO]   Extracted {len(extracted)} message(s) from {pst.name}")
-                            for eidx, eml in enumerate(extracted, 1):
-                                try:
-                                    rec = extract_from_eml(eml)
-                                    rec['source'] = f"{pst} :: {eml}"
-                                    write_record(out, rec, show_attachments=args.attachments)
-                                    json_records.append(rec)
-                                    processed += 1
-                                    _progress_emit(progress_path, {"phase": "processed", "kind": "pst-eml", "file": str(eml), "processed": processed})
-                                    _add_hash_row("message", rec["source"], rec["file"], None, rec.get("source_sha256"))
-                                    for a in rec.get("attachments", []) or []:
-                                        _add_hash_row("attachment", rec["source"], a.get("filename",""), a.get("size"), a.get("sha256"))
-                                except Exception:
-                                    errors += 1
-                                    out.write("="*90 + "\n")
-                                    out.write(f"ERROR reading extracted EML from {pst} -> {eml}:\n")
-                                    out.write(traceback.format_exc())
-                                    out.write("="*90 + "\n\n")
-                                    print(f"[ERROR] Failed extracted .eml: {eml}")
-                        except Exception:
-                            errors += 1
-                            out.write("="*90 + "\n")
-                            out.write(f"ERROR converting PST {pst}:\n")
-                            out.write(traceback.format_exc())
-                            out.write("="*90 + "\n\n")
-                            print(f"[ERROR] Failed .pst: {pst}")
+                for idx, pst in enumerate(pst_files, 1):
+                    print(f"[INFO] (.pst {idx}/{len(pst_files)}) {pst}")
+                    try:
+                        mailbox = load_mailbox(pst)
+                        extracted_messages = mailbox.all_messages()
+                        _progress_emit(progress_path, {"phase": "pst_extracted", "pst": str(pst), "count": len(extracted_messages)})
+                        print(f"[INFO]   Extracted {len(extracted_messages)} message(s) from {pst.name}")
+                        for eidx, message in enumerate(extracted_messages, 1):
+                            try:
+                                rec = message_to_record(message)
+                                write_record(out, rec, show_attachments=args.attachments)
+                                json_records.append(rec)
+                                processed += 1
+                                _progress_emit(progress_path, {"phase": "processed", "kind": "pst-eml", "file": rec["source"], "processed": processed})
+                                _add_hash_row("message", rec["source"], rec["file"], None, rec.get("source_sha256"))
+                                for a in rec.get("attachments", []) or []:
+                                    _add_hash_row("attachment", rec["source"], a.get("filename",""), a.get("size"), a.get("sha256"))
+                            except Exception:
+                                errors += 1
+                                out.write("="*90 + "\n")
+                                out.write(f"ERROR reading extracted message from {pst}:\n")
+                                out.write(traceback.format_exc())
+                                out.write("="*90 + "\n\n")
+                                print(f"[ERROR] Failed extracted message from {pst}")
+                    except Exception:
+                        errors += 1
+                        out.write("="*90 + "\n")
+                        out.write(f"ERROR converting PST {pst}:\n")
+                        out.write(traceback.format_exc())
+                        out.write("="*90 + "\n\n")
+                        print(f"[ERROR] Failed .pst: {pst}")
 
     if (not args.no_json) and json_records:
         try:
