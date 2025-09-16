@@ -71,7 +71,14 @@ def extract_from_msg(msg_path: Path) -> dict:
     msgid = try_getattr(m, "message_id", "") or ""
 
     body = try_getattr(m, "body", "") or ""
-    body_html = try_getattr(m, "htmlBody", "") or ""
+    body_html_raw = try_getattr(m, "htmlBody", "") or ""
+    if isinstance(body_html_raw, bytes):
+        try:
+            body_html = body_html_raw.decode("utf-8", errors="ignore")
+        except Exception:
+            body_html = body_html_raw.decode("latin-1", errors="ignore")
+    else:
+        body_html = body_html_raw
     if not body and body_html:
         body = html_to_text(body_html)
 

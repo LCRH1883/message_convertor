@@ -123,5 +123,15 @@ namespace MsgSecure.Viewer
 
             return HtmlRegex.Replace(content, match => match.Value + "<head>" + headContent + "</head>", 1);
         }
+        private void MenuExit_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
+        }
+
+        private void MenuAbout_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("MsgSecure Viewer\r\n\r\nPreview build with attachment support.", "About MsgSecure Viewer", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
     }
 }

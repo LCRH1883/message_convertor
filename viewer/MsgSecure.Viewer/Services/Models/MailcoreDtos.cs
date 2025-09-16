@@ -44,6 +44,9 @@ namespace MsgSecure.Viewer.Services.Models
         public string? BodyText { get; set; }
         public string? BodyHtml { get; set; }
         public IList<AttachmentDto> Attachments { get; set; } = new List<AttachmentDto>();
+
+        public int AttachmentCount => Attachments?.Count ?? 0;
+        public bool HasAttachments => AttachmentCount > 0;
     }
 
     public class FolderDto

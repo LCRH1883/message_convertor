@@ -3,9 +3,32 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MsgSecure Viewer" Height="600" Width="900">
     <DockPanel>
-        <StatusBar DockPanel.Dock="Bottom">
-            <TextBlock Text="{Binding Status}" />
-        </StatusBar>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_Open..." Command="{Binding OpenCommand}" />
+                <Separator />
+                <MenuItem Header="E_xit" Click="MenuExit_Click" />
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="Copy" IsEnabled="False" />
+                <MenuItem Header="Paste" IsEnabled="False" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="Zoom">
+                    <StackPanel Orientation="Horizontal" Margin="8,2,8,2">
+                        <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                        <Slider Width="140" Minimum="10" Maximum="28" SmallChange="1" LargeChange="2" Value="{Binding PreviewFontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Text="{Binding PreviewFontSize, StringFormat={}{0:N0}px}" VerticalAlignment="Center" Margin="4,0,0,0" />
+                    </StackPanel>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="_Settings">
+                <MenuItem Header="Preferences..." IsEnabled="False" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="About" Click="MenuAbout_Click" />
+            </MenuItem>
+        </Menu>
         <ToolBar DockPanel.Dock="Top">
             <Button Content="Open..." Command="{Binding OpenCommand}" />
             <Separator />
@@ -18,6 +41,9 @@
                     Value="{Binding PreviewFontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             <TextBlock Text="{Binding PreviewFontSize, StringFormat={}{0:N0}px}" VerticalAlignment="Center" Margin="4,0,0,0" />
         </ToolBar>
+        <StatusBar DockPanel.Dock="Bottom">
+            <TextBlock Text="{Binding Status}" />
+        </StatusBar>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="2*" />
@@ -29,6 +55,16 @@
                         <GridViewColumn Header="From" DisplayMemberBinding="{Binding Sender}" Width="220" />
                         <GridViewColumn Header="Subject" DisplayMemberBinding="{Binding Subject}" Width="420" />
                         <GridViewColumn Header="Date" DisplayMemberBinding="{Binding SentAt}" Width="200" />
+                        <GridViewColumn Header="Att" Width="80">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="📎" Margin="0,0,4,0" Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Text="{Binding AttachmentCount}" Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
                     </GridView>
                 </ListView.View>
             </ListView>
@@ -37,14 +73,9 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <StackPanel Grid.Row="0" Margin="0,0,0,8" Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Grid.Row="0" Margin="0,0,0,8" Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}">
                     <TextBlock Text="Attachments" FontWeight="Bold" Margin="0,0,0,4" />
                     <ItemsControl ItemsSource="{Binding Attachments}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Vertical" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
