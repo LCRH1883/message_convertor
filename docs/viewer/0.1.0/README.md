@@ -13,6 +13,18 @@ pwsh packaging/windows/build_viewer_installer.ps1
 # => dist/viewer/0.1.0/MsgSecure-0.1.0-setup.exe
 ```
 
+## Code signing
+
+Sign the shipped installer with Sigstore using the project email identity:
+
+```powershell
+pwsh -NoLogo -NoProfile -Command \
+  ".\\.venv\\Scripts\\sigstore.exe sign dist/viewer/0.1.0/MsgSecure-0.1.0-setup.exe --bundle dist/viewer/0.1.0/MsgSecure-0.1.0-setup.sigstore --oidc-disable-ambient-providers"
+```
+
+When prompted, authenticate with `lh@lcrhalpin.com` to issue the signing certificate.
+```
+
 ## Installation & QA checklist
 - Install the generated setup and launch MsgSecure from the Start Menu.
 - Re-run the installer to verify in-place upgrade keeps settings.

@@ -1,6 +1,8 @@
 # PyInstaller spec for Windows GUI onefile
 from PyInstaller.utils.hooks import collect_data_files
 
+ICON_PATH = 'branding/msgsecure_logo.ico'
+
 # 1) normal data collection (will still warn until __init__.py exists)
 datas = collect_data_files('mailcombine', includes=['resources/win64/*'], include_py_files=True)
 
@@ -24,6 +26,7 @@ exe = EXE(
     a.datas,
     name='msgsecure-win-gui',
     console=False,
-    onefile=True
+    onefile=True,
+    icon=ICON_PATH
 )
 

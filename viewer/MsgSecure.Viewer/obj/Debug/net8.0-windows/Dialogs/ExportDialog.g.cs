@@ -51,7 +51,7 @@ namespace MsgSecure.Viewer.Dialogs {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/MsgSecure.Viewer;component/dialogs/exportdialog.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/MsgSecure.Viewer;V1.0.0.0;component/dialogs/exportdialog.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\Dialogs\ExportDialog.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

@@ -74,6 +74,15 @@ pwsh packaging/windows/build_viewer_installer.ps1
 ```
 The script publishes the WPF viewer (`dist/viewer/0.1.0/publish/MsgSecure.exe`) and produces an installer that adds Start Menu and optional desktop shortcuts. Re-run the installer to upgrade; uninstall via **Settings -> Apps -> MsgSecure -> Uninstall**.
 
+Optional signing (PowerShell):
+```powershell
+pwsh -NoLogo -NoProfile -Command \
+  ".\\.venv\\Scripts\\sigstore.exe sign dist/viewer/0.1.0/MsgSecure-0.1.0-setup.exe --bundle dist/viewer/0.1.0/MsgSecure-0.1.0-setup.sigstore --oidc-disable-ambient-providers"
+```
+
+When prompted by the browser flow, authenticate with `lh@lcrhalpin.com`.
+```
+
 ## Documentation
 
 - Converter docs: [`docs/converter/`](docs/converter/README.md) (versioned build notes and release information)

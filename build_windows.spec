@@ -1,6 +1,8 @@
 # PyInstaller spec for Windows CLI build
 from PyInstaller.utils.hooks import collect_data_files
 
+ICON_PATH = 'branding/msgsecure_logo.ico'
+
 datas = collect_data_files('mailcombine', includes=['resources/win64/*','resources/linux64/*'], include_py_files=False)
 
 a = Analysis(
@@ -20,6 +22,7 @@ exe = EXE(
     a.datas,
     name='mail-combine-win',
     console=True,  # set False for GUI builds later
-    onefile=True
+    onefile=True,
+    icon=ICON_PATH
 )
 

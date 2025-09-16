@@ -8,8 +8,9 @@
 #endif
 #define AppPublisher "MsgSecure Project"
 #define AppURL "https://github.com/LCRH1883/message_convertor"
-#define RepoRoot "..\\.."
-#define ConverterDistDir RepoRoot + "\\dist\\converter\\" + AppVersion
+#define RepoRoot "..\.."
+#define BrandingDir RepoRoot + "\branding"
+#define ConverterDistDir RepoRoot + "\dist\converter\" + AppVersion
 #define PortableExeName "MsgSecure-Converter-win.exe"
 #define OutputBaseName "MsgSecure-Converter-" + AppVersion + "-setup"
 
@@ -27,6 +28,7 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir={#ConverterDistDir}
 OutputBaseFilename={#OutputBaseName}
+SetupIconFile={#BrandingDir}\msgsecure_logo.ico
 LicenseFile={#RepoRoot}\LICENSE
 Compression=lzma2
 SolidCompression=yes

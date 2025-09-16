@@ -9,6 +9,8 @@
 #define AppPublisher "MsgSecure Project"
 #define AppURL "https://github.com/LCRH1883/message_convertor"
 #define RepoRoot "..\\.."
+#define BrandingDir RepoRoot + "\\branding"
+#define ViewerAssetDir RepoRoot + "\\packaging\\windows\\assets"
 #define ViewerDistDir RepoRoot + "\\dist\\viewer\\" + AppVersion
 #define ViewerPublishDir ViewerDistDir + "\\publish"
 #define OutputBaseName "MsgSecure-" + AppVersion + "-setup"
@@ -27,7 +29,8 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir={#ViewerDistDir}
 OutputBaseFilename={#OutputBaseName}
-LicenseFile={#RepoRoot}\LICENSE
+SetupIconFile={#BrandingDir}\msgsecure_logo.ico
+LicenseFile={#ViewerAssetDir}\MSGSecure-Viewer-EULA.txt
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -50,7 +53,8 @@ Name: "desktopicon"; Description: "Create a &Desktop shortcut"; GroupDescription
 [Files]
 Source: "{#ViewerPublishDir}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#RepoRoot}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#RepoRoot}\README.md"; DestDir: "{app}"; DestName: "README-converter.md"; Flags: ignoreversion
+Source: "{#ViewerAssetDir}\MSGSecure-Viewer-EULA.txt"; DestDir: "{app}"; DestName: "MSGSecure-Viewer-EULA.txt"; Flags: ignoreversion
+Source: "{#ViewerAssetDir}\MSGSecure-Viewer-README.txt"; DestDir: "{app}"; DestName: "README.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\MsgSecure.exe"

@@ -42,7 +42,11 @@ if ($LASTEXITCODE -ne 0) {
 Get-ChildItem -Path $publishDir -Filter 'MsgSecure.Viewer*' | ForEach-Object {
   $newName = $_.Name -replace '^MsgSecure\.Viewer', 'MsgSecure'
   if ($newName -ne $_.Name) {
-    Rename-Item -Path $_.FullName -NewName $newName -Force
+    $newPath = Join-Path $_.DirectoryName $newName
+    if (Test-Path $newPath) {
+      Remove-Item $newPath -Force
+    }
+    Rename-Item -Path $_.FullName -NewName $newName
   }
 }
 
