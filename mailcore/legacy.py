@@ -20,6 +20,8 @@ def message_to_record(message: Message) -> Dict[str, object]:
             "filename": att.filename,
             "size": att.size,
             "sha256": att.sha256,
+            "content_type": att.content_type,
+            "content_base64": att.data_base64,
         }
         for att in message.attachments
     ]

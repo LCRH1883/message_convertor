@@ -56,6 +56,8 @@ def message_to_dict(message: Message) -> Dict[str, Any]:
                 "Filename": att.filename,
                 "Size": att.size,
                 "Sha256": att.sha256,
+                "ContentType": att.content_type,
+                "DataBase64": att.data_base64,
             }
             for att in message.attachments
         ],
@@ -68,7 +70,9 @@ def dict_to_message(data: Dict[str, Any]) -> Message:
             id=att.get("Id", ""),
             filename=att.get("Filename", ""),
             size=att.get("Size"),
+            content_type=att.get("ContentType"),
             sha256=att.get("Sha256"),
+            data_base64=att.get("DataBase64"),
         )
         for att in data.get("Attachments", [])
     ]

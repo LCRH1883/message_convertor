@@ -47,8 +47,10 @@ def record_to_message(record: Dict[str, Any], *, source_override: Optional[str] 
                 id=str(att_id),
                 filename=att.get("filename") or att_id,
                 size=att.get("size"),
+                content_type=att.get("content_type"),
                 sha256=att.get("sha256"),
                 source_path=None,
+                data_base64=att.get("content_base64"),
             )
         )
 

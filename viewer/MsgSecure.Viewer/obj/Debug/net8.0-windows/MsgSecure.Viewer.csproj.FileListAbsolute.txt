@@ -33,6 +33,7 @@ D:\Repos\message_convertor\viewer\MsgSecure.Viewer\bin\Debug\net8.0-windows\Micr
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\bin\Debug\net8.0-windows\Microsoft.Extensions.Primitives.dll
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.csproj.AssemblyReference.cache
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MainWindow.baml
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\App.baml
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MainWindow.g.cs
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\App.g.cs
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer_MarkupCompile.cache
@@ -47,4 +48,3 @@ D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\refi
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.pdb
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.genruntimeconfig.cache
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\ref\MsgSecure.Viewer.dll
-D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\App.baml

@@ -9,6 +9,25 @@ namespace MsgSecure.Viewer.Services.Models
         public string Filename { get; set; } = string.Empty;
         public long? Size { get; set; }
         public string? Sha256 { get; set; }
+        public string? ContentType { get; set; }
+        public string? DataBase64 { get; set; }
+
+        public bool HasData => !string.IsNullOrEmpty(DataBase64);
+
+        public string SizeDisplay => Size.HasValue ? $"{Size.Value:N0} bytes" : string.Empty;
+
+        public byte[]? GetDataBytes()
+        {
+            if (!HasData) return null;
+            try
+            {
+                return Convert.FromBase64String(DataBase64!);
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 
     public class MessageDto
