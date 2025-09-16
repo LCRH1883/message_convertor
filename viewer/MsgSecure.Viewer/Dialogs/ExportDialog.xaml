@@ -1,0 +1,35 @@
+<Window x:Class="MsgSecure.Viewer.Dialogs.ExportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Export Messages" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <StackPanel Margin="16" Width="420">
+        <TextBlock Text="Text output file" FontWeight="Bold" />
+        <DockPanel Margin="0,4,0,12">
+            <TextBox Text="{Binding TextPath, UpdateSourceTrigger=PropertyChanged}" Width="300" />
+            <Button Content="Browse..." Width="90" Margin="8,0,0,0" Click="BrowseText_Click" />
+        </DockPanel>
+
+        <CheckBox Content="Include attachments listing in text" IsChecked="{Binding IncludeAttachmentsInText}" Margin="0,0,0,8" />
+
+        <CheckBox Content="Write JSON sidecar" IsChecked="{Binding IncludeJson}" Margin="0,0,0,4" />
+        <DockPanel Margin="20,0,0,12" IsEnabled="{Binding IncludeJson}">
+            <TextBox Text="{Binding JsonPath, UpdateSourceTrigger=PropertyChanged}" Width="300" />
+            <Button Content="Browse..." Width="90" Margin="8,0,0,0" Click="BrowseJson_Click" />
+        </DockPanel>
+
+        <CheckBox Content="Write hashes CSV" IsChecked="{Binding IncludeHashes}" Margin="0,0,0,4" />
+        <DockPanel Margin="20,0,0,12" IsEnabled="{Binding IncludeHashes}">
+            <TextBox Text="{Binding HashesPath, UpdateSourceTrigger=PropertyChanged}" Width="300" />
+            <Button Content="Browse..." Width="90" Margin="8,0,0,0" Click="BrowseHashes_Click" />
+        </DockPanel>
+
+        <CheckBox Content="Export only selected messages" IsChecked="{Binding ExportSelectedOnly}" Margin="0,0,0,12"
+                  IsEnabled="{Binding CanExportSelected}" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="OK" Width="80" Margin="0,0,8,0" IsDefault="True" Click="Ok_Click" />
+            <Button Content="Cancel" Width="80" IsCancel="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>

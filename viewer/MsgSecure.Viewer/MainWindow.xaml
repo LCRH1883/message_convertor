@@ -6,6 +6,7 @@
         <Menu DockPanel.Dock="Top" IsMainMenu="True">
             <MenuItem Header="_File">
                 <MenuItem Header="_Open..." Command="{Binding OpenCommand}" />
+                <MenuItem Header="_Export..." Command="{Binding ExportCommand}" />
                 <Separator />
                 <MenuItem Header="E_xit" Click="MenuExit_Click" />
             </MenuItem>
@@ -17,7 +18,8 @@
                 <MenuItem Header="View Size">
                     <StackPanel Orientation="Horizontal" Margin="12,2,12,2">
                         <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,4,0" />
-                        <Slider Width="140" Minimum="10" Maximum="28" SmallChange="1" LargeChange="2" Value="{Binding PreviewFontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <Slider Width="140" Minimum="10" Maximum="28" SmallChange="1" LargeChange="2"
+                                Value="{Binding PreviewFontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBlock Text="{Binding PreviewFontSize, StringFormat={}{0:N0}px}" VerticalAlignment="Center" Margin="4,0,0,0" />
                     </StackPanel>
                 </MenuItem>
@@ -40,18 +42,21 @@
                 <RowDefinition Height="2*" />
                 <RowDefinition Height="3*" />
             </Grid.RowDefinitions>
-            <ListView Grid.Row="0" ItemsSource="{Binding Messages}" SelectedItem="{Binding SelectedMessage}">
+            <ListView x:Name="MessagesList" Grid.Row="0" ItemsSource="{Binding Messages}" SelectedItem="{Binding SelectedMessage}"
+                      SelectionMode="Extended" SelectionChanged="MessagesList_SelectionChanged">
                 <ListView.View>
                     <GridView>
                         <GridViewColumn Header="From" DisplayMemberBinding="{Binding Sender}" Width="220" />
                         <GridViewColumn Header="Subject" DisplayMemberBinding="{Binding Subject}" Width="420" />
                         <GridViewColumn Header="Date" DisplayMemberBinding="{Binding SentAt}" Width="200" />
-                        <GridViewColumn Header="Att" Width="80">
+                        <GridViewColumn Header="Att" Width="60">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="📎" Margin="0,0,4,0" Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                        <TextBlock Text="{Binding AttachmentCount}" Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Text="📎" Margin="0,0,4,0"
+                                                   Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Text="{Binding AttachmentCount}"
+                                                   Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
                                     </StackPanel>
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>

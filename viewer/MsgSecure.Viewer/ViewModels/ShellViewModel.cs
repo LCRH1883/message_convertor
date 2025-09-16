@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -11,6 +12,7 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 using MsgSecure.Viewer.Commands;
+using MsgSecure.Viewer.Dialogs;
 using MsgSecure.Viewer.Services;
 using MsgSecure.Viewer.Services.Models;
 
@@ -19,6 +21,9 @@ namespace MsgSecure.Viewer.ViewModels
     public class ShellViewModel : INotifyPropertyChanged
     {
         private readonly IMailcoreClient _mailcoreClient;
+        private readonly AsyncRelayCommand _exportCommand;
+        private readonly List<MessageDto> _selectedMessages = new();
+
         private string _status = "Ready";
         private MailboxDto? _currentMailbox;
         private MessageDto? _selectedMessage;
@@ -31,18 +36,24 @@ namespace MsgSecure.Viewer.ViewModels
             OpenAttachmentCommand = new AsyncRelayCommand(param => OpenAttachmentAsync(param as AttachmentDto));
             SaveAttachmentCommand = new AsyncRelayCommand(param => SaveAttachmentAsync(param as AttachmentDto));
             Messages = new ObservableCollection<MessageDto>();
+            Messages.CollectionChanged += Messages_CollectionChanged;
             Attachments = new ObservableCollection<AttachmentDto>();
             Attachments.CollectionChanged += Attachments_CollectionChanged;
+            _exportCommand = new AsyncRelayCommand(_ => ExportAsync(), _ => Messages.Count > 0);
+            ExportCommand = _exportCommand;
         }
 
         public ICommand OpenCommand { get; }
         public ICommand OpenAttachmentCommand { get; }
         public ICommand SaveAttachmentCommand { get; }
+        public ICommand ExportCommand { get; }
 
         public ObservableCollection<MessageDto> Messages { get; }
         public ObservableCollection<AttachmentDto> Attachments { get; }
 
         public bool HasAttachments => Attachments.Count > 0;
+
+        public IReadOnlyList<MessageDto> SelectedMessages => _selectedMessages;
 
         public MessageDto? SelectedMessage
         {
@@ -117,7 +128,8 @@ namespace MsgSecure.Viewer.ViewModels
                 CurrentMailbox = mailbox;
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    SelectedMessage = null;
+                    _selectedMessages.Clear();
+                    Attachments.Clear();
                     Messages.Clear();
                     foreach (var folder in mailbox.Folders)
                     {
@@ -127,6 +139,7 @@ namespace MsgSecure.Viewer.ViewModels
                         }
                     }
                     SelectedMessage = Messages.FirstOrDefault();
+                    UpdateSelectedMessages(SelectedMessage is null ? Array.Empty<MessageDto>() : new[] { SelectedMessage });
                 });
                 Status = $"Loaded {Messages.Count} message(s)";
             }
@@ -134,6 +147,28 @@ namespace MsgSecure.Viewer.ViewModels
             {
                 Status = "Error: " + ex.Message;
             }
+        }
+
+        public void UpdateSelectedMessages(IEnumerable<MessageDto>? items)
+        {
+            _selectedMessages.Clear();
+            if (items is not null)
+            {
+                foreach (var item in items)
+                {
+                    if (item is not null)
+                    {
+                        _selectedMessages.Add(item);
+                    }
+                }
+            }
+            OnPropertyChanged(nameof(SelectedMessages));
+            _exportCommand.RaiseCanExecuteChanged();
+        }
+
+        private void Messages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            _exportCommand.RaiseCanExecuteChanged();
         }
 
         private void Attachments_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -195,6 +230,73 @@ namespace MsgSecure.Viewer.ViewModels
                 }
             }
             return Task.CompletedTask;
+        }
+
+        private async Task ExportAsync()
+        {
+            if (Messages.Count == 0)
+            {
+                return;
+            }
+
+            var optionsVm = new ExportOptionsViewModel
+            {
+                IncludeAttachmentsInText = true,
+                IncludeJson = true,
+                IncludeHashes = false,
+                CanExportSelected = _selectedMessages.Count > 0,
+                ExportSelectedOnly = _selectedMessages.Count > 0
+            };
+            optionsVm.TextPath = BuildDefaultExportPath();
+
+            var dialog = new ExportDialog
+            {
+                Owner = Application.Current.MainWindow,
+                DataContext = optionsVm
+            };
+            bool? result = dialog.ShowDialog();
+            if (result != true)
+            {
+                return;
+            }
+
+            var messagesToExport = (optionsVm.ExportSelectedOnly && optionsVm.CanExportSelected && _selectedMessages.Count > 0)
+                ? _selectedMessages.ToList()
+                : Messages.ToList();
+
+            if (messagesToExport.Count == 0)
+            {
+                MessageBox.Show("No messages available to export.", "Export Messages", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                var dto = optionsVm.ToDto(CurrentMailbox?.DisplayName?.Trim() ?? CurrentMailbox?.SourcePath ?? "MsgSecure Viewer");
+                await _mailcoreClient.ExportBundleAsync(messagesToExport, dto);
+                Status = $"Exported {messagesToExport.Count} message(s) to {dto.TextPath}";
+            }
+            catch (Exception ex)
+            {
+                Status = "Export failed";
+                MessageBox.Show(ex.Message, "Export Messages", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private string BuildDefaultExportPath()
+        {
+            var baseName = CurrentMailbox?.DisplayName;
+            if (string.IsNullOrWhiteSpace(baseName))
+            {
+                baseName = CurrentMailbox?.SourcePath;
+            }
+            if (string.IsNullOrWhiteSpace(baseName))
+            {
+                baseName = "export";
+            }
+            baseName = SanitizeFileName(baseName);
+            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            return Path.Combine(desktop, $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
         }
 
         private static string SanitizeFileName(string? fileName)

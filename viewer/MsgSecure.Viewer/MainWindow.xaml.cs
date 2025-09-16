@@ -1,8 +1,10 @@
-using System.ComponentModel;
+using System;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Controls;
 using MsgSecure.Viewer.Services.Models;
 using MsgSecure.Viewer.ViewModels;
 
@@ -10,9 +12,9 @@ namespace MsgSecure.Viewer
 {
     public partial class MainWindow : Window
     {
-        private static readonly Regex HtmlRegex = new("<\\s*html", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex HeadRegex = new("<\\s*head[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex HtmlFragmentRegex = new("</?[a-z][a-z0-9-]*(\\s+[^<>]*)?>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex HtmlRegex = new Regex(@"<\s*html", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex HeadRegex = new Regex(@"<\s*head[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex HtmlFragmentRegex = new Regex(@"</?[a-z][a-z0-9-]*(\s+[^<>]*)?>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private ShellViewModel? _viewModel;
 
@@ -41,7 +43,7 @@ namespace MsgSecure.Viewer
             }
         }
 
-        private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(ShellViewModel.SelectedMessage) ||
                 e.PropertyName == nameof(ShellViewModel.PreviewFontSize))
@@ -60,12 +62,12 @@ namespace MsgSecure.Viewer
         {
             double fontSize = _viewModel?.PreviewFontSize ?? 14;
             var headBuilder = new StringBuilder();
-            headBuilder.Append("<meta charset=\"utf-8\"/>");
-            headBuilder.Append("<style>");
-            headBuilder.Append("body { font-family: 'Segoe UI', 'Malgun Gothic', 'Segoe UI Emoji', 'Noto Sans CJK KR', sans-serif; margin: 12px; }");
-            headBuilder.Append($"body {{ font-size: {fontSize}px; }}");
-            headBuilder.Append(".plain { white-space: pre-wrap; }");
-            headBuilder.Append("</style>");
+            headBuilder.AppendLine(@"<meta charset=""utf-8""/>");
+            headBuilder.AppendLine("<style>");
+            headBuilder.AppendLine("body { font-family: 'Segoe UI', 'Malgun Gothic', 'Segoe UI Emoji', 'Noto Sans CJK KR', sans-serif; margin: 12px; }");
+            headBuilder.AppendLine($"body {{ font-size: {fontSize}px; }}");
+            headBuilder.AppendLine(".plain { white-space: pre-wrap; }");
+            headBuilder.AppendLine("</style>");
             string headContent = headBuilder.ToString();
 
             if (message is null)
@@ -88,8 +90,8 @@ namespace MsgSecure.Viewer
 
             if (!string.IsNullOrWhiteSpace(bodyText))
             {
-                var decoded = WebUtility.HtmlDecode(bodyText);
-                var safe = WebUtility.HtmlEncode(decoded);
+                string decoded = WebUtility.HtmlDecode(bodyText);
+                string safe = WebUtility.HtmlEncode(decoded);
                 safe = safe.Replace("\r\n", "<br/>").Replace("\n", "<br/>");
                 return $"<html><head>{headContent}</head><body><div class='plain'>{safe}</div></body></html>";
             }
@@ -123,6 +125,15 @@ namespace MsgSecure.Viewer
 
             return HtmlRegex.Replace(content, match => match.Value + "<head>" + headContent + "</head>", 1);
         }
+
+        private void MessagesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_viewModel is null) return;
+            var listView = (ListView)sender;
+            var selected = listView.SelectedItems.Cast<MessageDto>();
+            _viewModel.UpdateSelectedMessages(selected);
+        }
+
         private void MenuExit_Click(object sender, RoutedEventArgs e)
         {
             Application.Current.Shutdown();
@@ -132,6 +143,5 @@ namespace MsgSecure.Viewer
         {
             MessageBox.Show("MsgSecure Viewer\r\n\r\nPreview build with attachment support.", "About MsgSecure Viewer", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-
     }
 }
