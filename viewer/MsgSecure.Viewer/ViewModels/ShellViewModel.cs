@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 using MsgSecure.Viewer.Commands;
@@ -70,16 +71,19 @@ namespace MsgSecure.Viewer.ViewModels
             Status = $"Loading {path}...";
             try
             {
-                var mailbox = await _mailcoreClient.LoadMailboxAsync(path).ConfigureAwait(false);
+                var mailbox = await _mailcoreClient.LoadMailboxAsync(path);
                 CurrentMailbox = mailbox;
-                Messages.Clear();
-                foreach (var folder in mailbox.Folders)
+                Application.Current.Dispatcher.Invoke(() =>
                 {
-                    foreach (var message in folder.Messages)
+                    Messages.Clear();
+                    foreach (var folder in mailbox.Folders)
                     {
-                        Messages.Add(message);
+                        foreach (var message in folder.Messages)
+                        {
+                            Messages.Add(message);
+                        }
                     }
-                }
+                });
                 Status = $"Loaded {Messages.Count} message(s)";
             }
             catch (Exception ex)

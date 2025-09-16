@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -24,8 +25,14 @@ namespace MsgSecure.Viewer
                 {
                     services.Configure<MailcoreClientOptions>(options =>
                     {
-                        options.PythonExecutable = "python"; // TODO: allow configuration
+                        options.PythonExecutable = "python";
                         options.ServerArguments = "-m mailcore.rpc_server";
+                        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+                        if (!Directory.Exists(Path.Combine(repoRoot, "mailcore")))
+                        {
+                            repoRoot = AppContext.BaseDirectory;
+                        }
+                        options.WorkingDirectory = repoRoot;
                     });
                     services.AddSingleton<IMailcoreClient, MailcoreProcessClient>();
                     services.AddSingleton<ShellViewModel>();

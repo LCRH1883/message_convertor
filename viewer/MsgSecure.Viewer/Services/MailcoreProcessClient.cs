@@ -19,6 +19,7 @@ namespace MsgSecure.Viewer.Services
         private Process? _process;
         private StreamWriter? _writer;
         private StreamReader? _reader;
+        private readonly StringBuilder _stderrBuffer = new();
         private int _nextId = 1;
         private bool _disposed;
 
@@ -103,7 +104,10 @@ namespace MsgSecure.Viewer.Services
                     string? responseLine = await _reader.ReadLineAsync().ConfigureAwait(false);
                     if (responseLine is null)
                     {
-                        throw new IOException("RPC server terminated unexpectedly");
+                        var stderr = _stderrBuffer.ToString().Trim();
+                        throw new IOException(string.IsNullOrEmpty(stderr)
+                            ? "RPC server terminated unexpectedly"
+                            : $"RPC server terminated unexpectedly: {stderr}");
                     }
                     var envelope = JsonNode.Parse(responseLine)!.AsObject();
                     if (envelope["id"]?.GetValue<int>() != id)
@@ -131,6 +135,7 @@ namespace MsgSecure.Viewer.Services
             }
 
             _process?.Dispose();
+            _stderrBuffer.Clear();
 
             var startInfo = new ProcessStartInfo
             {
@@ -143,9 +148,19 @@ namespace MsgSecure.Viewer.Services
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            startInfo.Environment["PYTHONPATH"] = _options.WorkingDirectory;
+
             _process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start mailcore RPC server");
             _writer = _process.StandardInput;
             _reader = _process.StandardOutput;
+            _process.ErrorDataReceived += (_, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                {
+                    _stderrBuffer.AppendLine(e.Data);
+                }
+            };
+            _process.BeginErrorReadLine();
         }
 
         public void Dispose()
@@ -163,10 +178,16 @@ namespace MsgSecure.Viewer.Services
             }
             catch
             {
-                // ignore
             }
             finally
             {
+                try
+                {
+                    _process?.CancelErrorRead();
+                }
+                catch
+                {
+                }
                 _writer?.Dispose();
                 _reader?.Dispose();
                 _process?.Dispose();
