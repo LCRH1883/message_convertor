@@ -38,6 +38,9 @@ chmod +x "$APPDIR/AppRun"
 # 5) Desktop + icon must exist
 [ -f "$APPDIR/usr/share/applications/msgsecure.desktop" ] || { echo "[ERROR] missing msgsecure.desktop"; exit 1; }
 [ -f "$APPDIR/usr/share/icons/hicolor/256x256/apps/msgsecure_logo.png" ] || { echo "[ERROR] missing msgsecure_logo.png"; exit 1; }
+# Copy desktop file and icon to AppDir root so appimagetool can find them
+cp "$APPDIR/usr/share/applications/msgsecure.desktop" "$APPDIR/" 2>/dev/null || true
+cp "$APPDIR/usr/share/icons/hicolor/256x256/apps/msgsecure_logo.png" "$APPDIR/" 2>/dev/null || true
 
 # 6) Get appimagetool if missing
 if [ ! -f "$APPIMAGE_TOOL" ]; then

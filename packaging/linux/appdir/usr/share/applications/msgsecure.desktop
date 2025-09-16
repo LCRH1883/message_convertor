@@ -5,5 +5,4 @@ Comment=Convert MSG/EML/PST into one searchable TXT (GUI)
 Exec=msgsecure-linux-gui
 Icon=msgsecure_logo
 Terminal=false
-Categories=Office;Utility;
-
+Categories=Office;Utility
