@@ -15,6 +15,11 @@ namespace MsgSecure.Viewer.Services
 {
     public class MailcoreProcessClient : IMailcoreClient, IDisposable
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
         private readonly MailcoreClientOptions _options;
         private readonly SemaphoreSlim _mutex = new(1, 1);
         private Process? _process;
@@ -39,13 +44,13 @@ namespace MsgSecure.Viewer.Services
         public async Task<MailboxDto> LoadMailboxAsync(string path)
         {
             var response = await SendRequestAsync("load_mailbox", new { path });
-            return response!.Deserialize<MailboxDto>() ?? new MailboxDto();
+            return response is null ? new MailboxDto() : response.Deserialize<MailboxDto>(JsonOptions) ?? new MailboxDto();
         }
 
         public async Task<MessageDto> LoadMessageAsync(string path)
         {
             var response = await SendRequestAsync("load_message", new { path });
-            return response!.Deserialize<MessageDto>() ?? new MessageDto();
+            return response is null ? new MessageDto() : response.Deserialize<MessageDto>(JsonOptions) ?? new MessageDto();
         }
 
         public Task ExportTextAsync(IEnumerable<MessageDto> messages, string destination, string sourceLabel, bool includeAttachments)
@@ -95,7 +100,7 @@ namespace MsgSecure.Viewer.Services
                     ["jsonrpc"] = "2.0",
                     ["id"] = id,
                     ["method"] = method,
-                    ["params"] = JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(parameters))
+                    ["params"] = JsonSerializer.Deserialize<JsonNode>(JsonSerializer.Serialize(parameters, JsonOptions), JsonOptions)
                 };
                 string line = request.ToJsonString();
                 await _writer.WriteLineAsync(line).ConfigureAwait(false);
