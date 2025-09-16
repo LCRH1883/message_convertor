@@ -19,13 +19,13 @@ source .venv/bin/activate
 python -m pip install --upgrade pip >/dev/null
 pip install -r requirements-gui.txt pyinstaller >/dev/null
 
-# 2) Build onedir (easier to stage into AppDir)
-pyinstaller --clean build_linux_gui_onedir.spec
+# 2) Build GUI (onefile) and stage into AppDir
+pyinstaller --clean build_linux_gui.spec
 
 # 3) Stage AppDir
 mkdir -p "$APPDIR/usr/bin"
 rm -rf "$APPDIR/usr/bin/"* || true
-cp -r dist/msgsecure-linux-gui/* "$APPDIR/usr/bin/"
+cp dist/msgsecure-linux-gui "$APPDIR/usr/bin/"
 
 # 4) AppRun launcher
 cat > "$APPDIR/AppRun" << 'EOF'
