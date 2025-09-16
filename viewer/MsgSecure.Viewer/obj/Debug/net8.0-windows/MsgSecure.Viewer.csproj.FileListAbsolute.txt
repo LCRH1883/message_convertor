@@ -1,0 +1,13 @@
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.csproj.AssemblyReference.cache
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MainWindow.baml
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\App.baml
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MainWindow.g.cs
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\App.g.cs
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer_MarkupCompile.cache
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.g.resources
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.GeneratedMSBuildEditorConfig.editorconfig
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.AssemblyInfoInputs.cache
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.AssemblyInfo.cs
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.csproj.CoreCompileInputs.cache
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.dll
+D:\Repos\message_convertor\viewer\MsgSecure.Viewer\obj\Debug\net8.0-windows\MsgSecure.Viewer.pdb
