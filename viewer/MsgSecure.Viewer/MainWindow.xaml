@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MsgSecure Viewer" Height="600" Width="900">
     <DockPanel>
-        <Menu DockPanel.Dock="Top">
+        <Menu DockPanel.Dock="Top" IsMainMenu="True">
             <MenuItem Header="_File">
                 <MenuItem Header="_Open..." Command="{Binding OpenCommand}" />
                 <Separator />
@@ -14,8 +14,8 @@
                 <MenuItem Header="Paste" IsEnabled="False" />
             </MenuItem>
             <MenuItem Header="_View">
-                <MenuItem Header="Zoom">
-                    <StackPanel Orientation="Horizontal" Margin="8,2,8,2">
+                <MenuItem Header="View Size">
+                    <StackPanel Orientation="Horizontal" Margin="12,2,12,2">
                         <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,4,0" />
                         <Slider Width="140" Minimum="10" Maximum="28" SmallChange="1" LargeChange="2" Value="{Binding PreviewFontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBlock Text="{Binding PreviewFontSize, StringFormat={}{0:N0}px}" VerticalAlignment="Center" Margin="4,0,0,0" />
@@ -31,15 +31,6 @@
         </Menu>
         <ToolBar DockPanel.Dock="Top">
             <Button Content="Open..." Command="{Binding OpenCommand}" />
-            <Separator />
-            <TextBlock Text="Zoom:" VerticalAlignment="Center" Margin="8,0,4,0" />
-            <Slider Width="140"
-                    Minimum="10"
-                    Maximum="28"
-                    SmallChange="1"
-                    LargeChange="2"
-                    Value="{Binding PreviewFontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-            <TextBlock Text="{Binding PreviewFontSize, StringFormat={}{0:N0}px}" VerticalAlignment="Center" Margin="4,0,0,0" />
         </ToolBar>
         <StatusBar DockPanel.Dock="Bottom">
             <TextBlock Text="{Binding Status}" />
