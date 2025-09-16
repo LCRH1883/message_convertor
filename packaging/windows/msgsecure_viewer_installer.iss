@@ -1,5 +1,5 @@
-; MsgSecure Converter Windows Installer (Inno Setup)
-#define AppName "MsgSecure Converter"
+; MsgSecure Viewer Windows Installer (Inno Setup)
+#define AppName "MsgSecure"
 #ifndef AppVersion
   #define AppVersion "0.1.0"
 #endif
@@ -9,12 +9,12 @@
 #define AppPublisher "MsgSecure Project"
 #define AppURL "https://github.com/LCRH1883/message_convertor"
 #define RepoRoot "..\\.."
-#define ConverterDistDir RepoRoot + "\\dist\\converter\\" + AppVersion
-#define PortableExeName "MsgSecure-Converter-win.exe"
-#define OutputBaseName "MsgSecure-Converter-" + AppVersion + "-setup"
+#define ViewerDistDir RepoRoot + "\\dist\\viewer\\" + AppVersion
+#define ViewerPublishDir ViewerDistDir + "\\publish"
+#define OutputBaseName "MsgSecure-" + AppVersion + "-setup"
 
 [Setup]
-AppId={{2516DD0D-057C-43A3-B6AD-D3D25C27FC5B}}
+AppId={{6E531480-D216-4225-980F-CD1CE8A74AAA}}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
@@ -25,7 +25,7 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-OutputDir={#ConverterDistDir}
+OutputDir={#ViewerDistDir}
 OutputBaseFilename={#OutputBaseName}
 LicenseFile={#RepoRoot}\LICENSE
 Compression=lzma2
@@ -34,12 +34,12 @@ WizardStyle=modern
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=admin
-UninstallDisplayIcon={app}\{#PortableExeName}
+UninstallDisplayIcon={app}\MsgSecure.exe
+SetupLogging=yes
 VersionInfoVersion={#AppFileVersion}
 VersionInfoProductName={#AppName}
 VersionInfoProductVersion={#AppVersion}
 VersionInfoCompany={#AppPublisher}
-SetupLogging=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -48,13 +48,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a &Desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "{#ConverterDistDir}\{#PortableExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#RepoRoot}\README.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#ViewerPublishDir}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#RepoRoot}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#RepoRoot}\README.md"; DestDir: "{app}"; DestName: "README-converter.md"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#PortableExeName}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#PortableExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\MsgSecure.exe"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\MsgSecure.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#PortableExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\MsgSecure.exe"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent

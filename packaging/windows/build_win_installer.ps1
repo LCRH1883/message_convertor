@@ -10,7 +10,7 @@ if (-not $versionMatch) {
   throw "Unable to determine version from $initPath"
 }
 $version = $versionMatch.Matches[0].Groups[1].Value
-Write-Host "[INFO] Building MsgSecure $version"
+Write-Host "[INFO] Building MsgSecure Converter $version"
 
 $versionParts = @($version.Split('.'))
 while ($versionParts.Count -lt 4) {
@@ -22,9 +22,10 @@ Write-Host "[INFO] Windows file version: $winFileVersion"
 Write-Host "[BUILD] Refreshing PyInstaller onefile payload..."
 & "$PSScriptRoot\\build_win_portable.ps1"
 
-$portableExe = Join-Path $repoRoot "dist/msgsecure-win-gui.exe"
+$converterDir = Join-Path $repoRoot "dist\\converter\\$version"
+$portableExe = Join-Path $converterDir "MsgSecure-Converter-win.exe"
 if (-not (Test-Path $portableExe)) {
-  throw "Missing portable executable: $portableExe. Did the PyInstaller build succeed?"
+  throw "Missing converter executable: $portableExe. Did the PyInstaller build succeed?"
 }
 
 $possibleCommands = @("iscc.exe", "iscc", "ISCC.exe", "ISCC")
@@ -66,7 +67,7 @@ if ($LASTEXITCODE -ne 0) {
   throw "Inno Setup compiler failed with exit code $LASTEXITCODE"
 }
 
-$installerPath = Join-Path $repoRoot "dist/MsgSecure-$version-setup.exe"
+$installerPath = Join-Path $converterDir "MsgSecure-Converter-$version-setup.exe"
 if (Test-Path $installerPath) {
   Write-Host "[DONE] Installer ready: $installerPath" -ForegroundColor Green
 } else {

@@ -2,9 +2,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
+VERSION=$(python3 -c "import re, pathlib; text = pathlib.Path('mailcombine/__init__.py').read_text(); m = re.search(r'__version__\\s*=\\s*\"([^\"]+)\"', text); print(m.group(1))")
+CONVERTER_DIST_DIR="dist/converter/${VERSION}"
 APPDIR="packaging/linux/appdir"
 APPIMAGE_TOOL="packaging/linux/appimagetool-x86_64.AppImage"
-OUT_APPIMAGE="dist/MsgSecure-x86_64.AppImage"
+OUT_APPIMAGE="${CONVERTER_DIST_DIR}/MsgSecure-Converter-x86_64.AppImage"
+PORTABLE_STAGE="dist/msgsecure-linux-gui"
+FINAL_PORTABLE="${CONVERTER_DIST_DIR}/MsgSecure-Converter-linux-gui"
+
+mkdir -p "${CONVERTER_DIST_DIR}"
 
 # 0) Require embedded PST binary (so PST works inside the single file)
 if [ ! -f "mailcombine/resources/linux64/readpst" ]; then
@@ -22,10 +28,15 @@ pip install -r requirements-gui.txt pyinstaller >/dev/null
 # 2) Build GUI (onefile) and stage into AppDir
 pyinstaller --clean build_linux_gui.spec
 
+if [ ! -f "$PORTABLE_STAGE" ]; then
+  echo "[ERROR] Expected PyInstaller output $PORTABLE_STAGE not found."
+  exit 1
+fi
+
 # 3) Stage AppDir
 mkdir -p "$APPDIR/usr/bin"
 rm -rf "$APPDIR/usr/bin/"* || true
-cp dist/msgsecure-linux-gui "$APPDIR/usr/bin/"
+cp "$PORTABLE_STAGE" "$APPDIR/usr/bin/"
 
 # 4) AppRun launcher
 cat > "$APPDIR/AppRun" << 'EOF'
@@ -50,6 +61,10 @@ if [ ! -f "$APPIMAGE_TOOL" ]; then
 fi
 
 # 7) Build AppImage
-mkdir -p dist
 "$APPIMAGE_TOOL" "$APPDIR" "$OUT_APPIMAGE"
-echo "✅ Portable ready: $OUT_APPIMAGE"
+
+# 8) Store portable binary alongside AppImage for this version
+mv "$PORTABLE_STAGE" "$FINAL_PORTABLE"
+
+echo "? Converter AppImage ready: $OUT_APPIMAGE"
+echo "? Converter portable (GUI) ready: $FINAL_PORTABLE"
