@@ -12,5 +12,6 @@ namespace MsgSecure.Viewer.Services
         Task ExportTextAsync(IEnumerable<MessageDto> messages, string destination, string sourceLabel, bool includeAttachments);
         Task ExportJsonAsync(IEnumerable<MessageDto> messages, string destination, string sourceLabel, string? outputTextPath);
         Task ExportHashesAsync(IEnumerable<MessageDto> messages, string destination);
+        Task ExportBundleAsync(IEnumerable<MessageDto> messages, ExportOptionsDto options);
     }
 }

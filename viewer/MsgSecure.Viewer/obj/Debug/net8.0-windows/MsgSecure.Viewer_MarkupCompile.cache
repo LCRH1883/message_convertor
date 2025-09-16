@@ -1,5 +1,5 @@
 ﻿MsgSecure.Viewer
-
+1.0.0.0
 
 winexe
 C#
@@ -12,8 +12,8 @@ TRACE;DEBUG;NET;NET8_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR
 D:\Repos\message_convertor\viewer\MsgSecure.Viewer\App.xaml
 11407045341
 
-91074520859
-2261281973951
+11340251185
+198-192518753
 MainWindow.xaml;
 
 False

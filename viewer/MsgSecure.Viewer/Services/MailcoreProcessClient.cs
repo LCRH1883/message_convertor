@@ -83,6 +83,23 @@ namespace MsgSecure.Viewer.Services
             return SendRequestAsync("export_hashes", payload);
         }
 
+        public Task ExportBundleAsync(IEnumerable<MessageDto> messages, ExportOptionsDto options)
+        {
+            var payload = new
+            {
+                messages,
+                text_path = options.TextPath,
+                source = options.SourceLabel,
+                show_attachments = options.IncludeAttachmentsInText,
+                encoding = options.Encoding,
+                write_json = options.IncludeJson,
+                json_path = options.JsonPath,
+                write_hashes = options.IncludeHashes,
+                hashes_path = options.HashesPath
+            };
+            return SendRequestAsync("export_bundle", payload);
+        }
+
         private async Task<JsonNode?> SendRequestAsync(string method, object parameters)
         {
             await _mutex.WaitAsync().ConfigureAwait(false);

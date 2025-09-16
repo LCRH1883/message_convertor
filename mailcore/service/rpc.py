@@ -24,6 +24,7 @@ class MailcoreJsonRpcServer:
             "export_text": self.handle_export_text,
             "export_json": self.handle_export_json,
             "export_hashes": self.handle_export_hashes,
+            "export_bundle": self.handle_export_bundle,
         }
 
     def serve_forever(self) -> None:
@@ -102,6 +103,28 @@ class MailcoreJsonRpcServer:
         dest = Path(params["dest"])
         export_hashes(messages, dest)
         return {"written": str(dest)}
+
+    def handle_export_bundle(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        messages = self._messages_from_params(params)
+        if not messages:
+            raise ValueError("No messages provided for export")
+        source = params.get("source", "")
+        show_attachments = bool(params.get("show_attachments", False))
+        encoding = params.get("encoding", "utf-8")
+        text_path = Path(params["text_path"])
+        export_text(messages, text_path, source_label=source, show_attachments=show_attachments, encoding=encoding)
+        result = {"text": str(text_path)}
+        if params.get("write_json"):
+            json_path = params.get("json_path")
+            if json_path:
+                export_json(messages, Path(json_path), source_label=source, output_text_path=text_path)
+                result["json"] = json_path
+        if params.get("write_hashes"):
+            hashes_path = params.get("hashes_path")
+            if hashes_path:
+                export_hashes(messages, Path(hashes_path))
+                result["hashes"] = hashes_path
+        return result
 
 
 def main() -> None:
