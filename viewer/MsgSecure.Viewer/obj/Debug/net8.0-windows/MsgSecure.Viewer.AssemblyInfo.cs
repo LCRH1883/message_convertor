@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MsgSecure.Viewer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9f064a2578044bb458611f65b84e897f27aae771")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
 [assembly: System.Reflection.AssemblyProductAttribute("MsgSecure.Viewer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MsgSecure.Viewer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

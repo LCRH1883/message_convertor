@@ -11,10 +11,10 @@
         </ToolBar>
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="*" />
                 <RowDefinition Height="2*" />
+                <RowDefinition Height="3*" />
             </Grid.RowDefinitions>
-            <ListView Grid.Row="0" ItemsSource="{Binding Messages}">
+            <ListView Grid.Row="0" ItemsSource="{Binding Messages}" SelectedItem="{Binding SelectedMessage}">
                 <ListView.View>
                     <GridView>
                         <GridViewColumn Header="From" DisplayMemberBinding="{Binding Sender}" Width="200" />
@@ -24,7 +24,7 @@
                 </ListView.View>
             </ListView>
             <ScrollViewer Grid.Row="1" Margin="4" VerticalScrollBarVisibility="Auto">
-                <TextBlock Text="Select a message to preview." />
+                <TextBlock TextWrapping="Wrap" Text="{Binding PreviewText}" />
             </ScrollViewer>
         </Grid>
     </DockPanel>

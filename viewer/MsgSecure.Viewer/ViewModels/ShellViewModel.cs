@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -17,6 +18,7 @@ namespace MsgSecure.Viewer.ViewModels
         private readonly IMailcoreClient _mailcoreClient;
         private string _status = "Ready";
         private MailboxDto? _currentMailbox;
+        private MessageDto? _selectedMessage;
 
         public ShellViewModel(IMailcoreClient mailcoreClient)
         {
@@ -28,6 +30,22 @@ namespace MsgSecure.Viewer.ViewModels
         public ICommand OpenCommand { get; }
 
         public ObservableCollection<MessageDto> Messages { get; }
+
+        public MessageDto? SelectedMessage
+        {
+            get => _selectedMessage;
+            set
+            {
+                if (_selectedMessage != value)
+                {
+                    _selectedMessage = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(PreviewText));
+                }
+            }
+        }
+
+        public string PreviewText => SelectedMessage?.BodyText ?? "Select a message to preview.";
 
         public string Status
         {
@@ -83,6 +101,7 @@ namespace MsgSecure.Viewer.ViewModels
                             Messages.Add(message);
                         }
                     }
+                    SelectedMessage = Messages.FirstOrDefault();
                 });
                 Status = $"Loaded {Messages.Count} message(s)";
             }

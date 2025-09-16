@@ -22,17 +22,50 @@ def _normalize(value: Any) -> Any:
 
 
 def mailbox_to_dict(mailbox: Mailbox) -> Dict[str, Any]:
-    return _normalize(asdict(mailbox))
+    return {
+        "source_path": str(mailbox.source_path),
+        "display_name": mailbox.display_name,
+        "folders": [folder_to_dict(folder) for folder in mailbox.folders],
+    }
+
+
+def folder_to_dict(folder) -> Dict[str, Any]:
+    return {
+        "id": folder.id,
+        "name": folder.name,
+        "path": folder.path,
+        "messages": [message_to_dict(msg) for msg in folder.messages],
+        "subfolders": [folder_to_dict(sub) for sub in folder.subfolders],
+    }
 
 
 def message_to_dict(message: Message) -> Dict[str, Any]:
-    return _normalize(asdict(message))
+    return {
+        "id": message.id,
+        "source": message.source,
+        "source_path": str(message.source_path) if message.source_path else None,
+        "subject": message.subject,
+        "sender": message.sender,
+        "to": list(message.to),
+        "cc": list(message.cc),
+        "bcc": list(message.bcc),
+        "sent_at": message.sent_at.isoformat() if message.sent_at else None,
+        "body_text": message.body_text,
+        "body_html": message.body_html,
+        "attachments": [
+            {
+                "id": att.id,
+                "filename": att.filename,
+                "size": att.size,
+                "sha256": att.sha256,
+            }
+            for att in message.attachments
+        ],
+    }
 
 
 def dict_to_message(data: Dict[str, Any]) -> Message:
-    attachments = [Attachment(**att) for att in data.get("attachments", [])]
-    body_parts = [BodyPart(**part) for part in data.get("body_parts", [])]
-    hashes = [HashInfo(**hashinfo) for hashinfo in data.get("hashes", [])]
+    attachments = [Attachment(id=att.get("id", ""), filename=att.get("filename", ""), size=att.get("size"), sha256=att.get("sha256")) for att in data.get("attachments", [])]
     sent_at_raw = data.get("sent_at")
     sent_at_value = None
     if isinstance(sent_at_raw, str) and sent_at_raw:
@@ -40,16 +73,10 @@ def dict_to_message(data: Dict[str, Any]) -> Message:
             sent_at_value = datetime.fromisoformat(sent_at_raw)
         except ValueError:
             sent_at_value = None
-    elif isinstance(sent_at_raw, datetime):
-        sent_at_value = sent_at_raw
-
-    source_path_raw = data.get("source_path")
-    source_path_value = Path(source_path_raw) if source_path_raw else None
-
     return Message(
         id=data.get("id", ""),
         source=data.get("source", ""),
-        source_path=source_path_value,
+        source_path=Path(data["source_path"]) if data.get("source_path") else None,
         subject=data.get("subject", ""),
         sender=data.get("sender", ""),
         to=data.get("to", []),
@@ -58,8 +85,5 @@ def dict_to_message(data: Dict[str, Any]) -> Message:
         sent_at=sent_at_value,
         body_text=data.get("body_text"),
         body_html=data.get("body_html"),
-        body_parts=body_parts,
         attachments=attachments,
-        headers=data.get("headers", {}),
-        hashes=hashes,
     )

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -20,6 +21,7 @@ namespace MsgSecure.Viewer.Services
         private StreamWriter? _writer;
         private StreamReader? _reader;
         private readonly StringBuilder _stderrBuffer = new();
+        private readonly Dictionary<int, JsonNode?> _responseCache = new();
         private int _nextId = 1;
         private bool _disposed;
 
@@ -79,6 +81,7 @@ namespace MsgSecure.Viewer.Services
         private async Task<JsonNode?> SendRequestAsync(string method, object parameters)
         {
             await _mutex.WaitAsync().ConfigureAwait(false);
+            int id = _nextId++;
             try
             {
                 EnsureProcess();
@@ -87,7 +90,6 @@ namespace MsgSecure.Viewer.Services
                     throw new InvalidOperationException("RPC process not started");
                 }
 
-                int id = _nextId++;
                 var request = new JsonObject
                 {
                     ["jsonrpc"] = "2.0",
@@ -99,31 +101,51 @@ namespace MsgSecure.Viewer.Services
                 await _writer.WriteLineAsync(line).ConfigureAwait(false);
                 await _writer.FlushAsync().ConfigureAwait(false);
 
-                while (true)
-                {
-                    string? responseLine = await _reader.ReadLineAsync().ConfigureAwait(false);
-                    if (responseLine is null)
-                    {
-                        var stderr = _stderrBuffer.ToString().Trim();
-                        throw new IOException(string.IsNullOrEmpty(stderr)
-                            ? "RPC server terminated unexpectedly"
-                            : $"RPC server terminated unexpectedly: {stderr}");
-                    }
-                    var envelope = JsonNode.Parse(responseLine)!.AsObject();
-                    if (envelope["id"]?.GetValue<int>() != id)
-                    {
-                        continue;
-                    }
-                    if (envelope.TryGetPropertyValue("error", out var errorNode))
-                    {
-                        throw new InvalidOperationException(errorNode?["message"]?.GetValue<string>() ?? "RPC error");
-                    }
-                    return envelope["result"];
-                }
+                return await ReadResponseAsync(id).ConfigureAwait(false);
             }
             finally
             {
                 _mutex.Release();
+            }
+        }
+
+        private async Task<JsonNode?> ReadResponseAsync(int id)
+        {
+            while (true)
+            {
+                if (_responseCache.TryGetValue(id, out var cached))
+                {
+                    _responseCache.Remove(id);
+                    return cached;
+                }
+                string? responseLine = await _reader!.ReadLineAsync().ConfigureAwait(false);
+                if (responseLine is null)
+                {
+                    var stderr = _stderrBuffer.ToString().Trim();
+                    throw new IOException(string.IsNullOrEmpty(stderr)
+                        ? "RPC server terminated unexpectedly"
+                        : $"RPC server terminated unexpectedly: {stderr}");
+                }
+                var envelope = JsonNode.Parse(responseLine)!.AsObject();
+                var responseIdNode = envelope["id"];
+                int responseId = responseIdNode is null ? -1 : responseIdNode.GetValue<int>();
+                if (envelope.TryGetPropertyValue("error", out var errorNode))
+                {
+                    if (responseId == id || responseId == -1)
+                    {
+                        throw new InvalidOperationException(errorNode?["message"]?.GetValue<string>() ?? "RPC error");
+                    }
+                    continue;
+                }
+                var resultNode = envelope.TryGetPropertyValue("result", out var tmp) ? tmp : null;
+                if (responseId == id || responseId == -1)
+                {
+                    return resultNode;
+                }
+                if (responseId >= 0)
+                {
+                    _responseCache[responseId] = resultNode;
+                }
             }
         }
 
@@ -134,8 +156,11 @@ namespace MsgSecure.Viewer.Services
                 return;
             }
 
+            _writer?.Dispose();
+            _reader?.Dispose();
             _process?.Dispose();
             _stderrBuffer.Clear();
+            _responseCache.Clear();
 
             var startInfo = new ProcessStartInfo
             {
