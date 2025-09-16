@@ -33,6 +33,7 @@
         </Menu>
         <ToolBar DockPanel.Dock="Top">
             <Button Content="Open..." Command="{Binding OpenCommand}" />
+            <Button Content="Select/Deselect All" Margin="8,0,0,0" Click="SelectAllButton_Click" />
         </ToolBar>
         <StatusBar DockPanel.Dock="Bottom">
             <TextBlock Text="{Binding Status}" />
@@ -46,21 +47,19 @@
                       SelectionMode="Extended" SelectionChanged="MessagesList_SelectionChanged">
                 <ListView.View>
                     <GridView>
-                        <GridViewColumn Header="From" DisplayMemberBinding="{Binding Sender}" Width="220" />
-                        <GridViewColumn Header="Subject" DisplayMemberBinding="{Binding Subject}" Width="420" />
-                        <GridViewColumn Header="Date" DisplayMemberBinding="{Binding SentAt}" Width="200" />
                         <GridViewColumn Header="Att" Width="60">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <TextBlock Text="📎" Margin="0,0,4,0"
-                                                   Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                        <TextBlock Text="{Binding AttachmentCount}"
-                                                   Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Text="📎" Margin="0,0,4,0" Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Text="{Binding AttachmentCount}" Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVisibilityConverter}}" />
                                     </StackPanel>
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
+                        <GridViewColumn Header="From" DisplayMemberBinding="{Binding Sender}" Width="220" />
+                        <GridViewColumn Header="Subject" DisplayMemberBinding="{Binding Subject}" Width="420" />
+                        <GridViewColumn Header="Date" DisplayMemberBinding="{Binding SentAt}" Width="200" />
                     </GridView>
                 </ListView.View>
             </ListView>

@@ -134,6 +134,20 @@ namespace MsgSecure.Viewer
             _viewModel.UpdateSelectedMessages(selected);
         }
 
+        private void SelectAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel is null) return;
+            if (MessagesList.SelectedItems.Count < MessagesList.Items.Count)
+            {
+                MessagesList.SelectAll();
+            }
+            else
+            {
+                MessagesList.UnselectAll();
+            }
+            _viewModel.UpdateSelectedMessages(MessagesList.SelectedItems.Cast<MessageDto>());
+        }
+
         private void MenuExit_Click(object sender, RoutedEventArgs e)
         {
             Application.Current.Shutdown();
