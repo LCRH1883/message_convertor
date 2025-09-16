@@ -27,13 +27,40 @@ namespace MsgSecure.Viewer
                     {
                         services.Configure<MailcoreClientOptions>(options =>
                         {
-                            var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-                            if (!Directory.Exists(Path.Combine(repoRoot, "mailcore")))
+                            string baseDir = AppContext.BaseDirectory;
+                            string exePath = Environment.ProcessPath ?? baseDir;
+                            string installDir = Path.GetDirectoryName(exePath) ?? baseDir;
+
+                            string ResolveRoot()
                             {
-                                repoRoot = AppContext.BaseDirectory;
+                                var candidates = new[]
+                                {
+                                    installDir,
+                                    baseDir,
+                                    Path.GetFullPath(Path.Combine(installDir, "..", "..", "..", "..", "..")),
+                                    Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", ".."))
+                                };
+
+                                foreach (var candidate in candidates)
+                                {
+                                    if (Directory.Exists(Path.Combine(candidate, "mailcore")) &&
+                                        Directory.Exists(Path.Combine(candidate, "mailcombine")))
+                                    {
+                                        return candidate;
+                                    }
+                                }
+
+                                return installDir;
                             }
+
+                            var repoRoot = ResolveRoot();
                             var pythonPath = Path.Combine(repoRoot, ".venv", "Scripts", "python.exe");
-                            options.PythonExecutable = File.Exists(pythonPath) ? pythonPath : options.PythonExecutable;
+                            if (!File.Exists(pythonPath))
+                            {
+                                pythonPath = "python";
+                            }
+
+                            options.PythonExecutable = pythonPath;
                             options.ServerArguments = "-m mailcore.rpc_server";
                             options.WorkingDirectory = repoRoot;
                         });

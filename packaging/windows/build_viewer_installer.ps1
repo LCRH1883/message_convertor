@@ -16,6 +16,36 @@ $viewerDistRoot = Join-Path $repoRoot "dist\\viewer\\$version"
 $publishDir = Join-Path $viewerDistRoot "publish"
 New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
 
+function Sync-Directory {
+  param(
+    [Parameter(Mandatory = $true)][string]$Source,
+    [Parameter(Mandatory = $true)][string]$Destination
+  )
+
+  if (-not (Test-Path $Source)) {
+    throw "Required dependency directory missing: $Source"
+  }
+
+  if (-not (Test-Path $Destination)) {
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+  }
+
+  $robocopy = Get-Command 'robocopy.exe' -ErrorAction SilentlyContinue
+  if ($robocopy) {
+    $null = & $robocopy $Source $Destination /MIR /NFL /NDL /NJH /NJS /NP
+    $exit = $LASTEXITCODE
+    if ($exit -gt 3) {
+      throw "robocopy failed copying $Source to $Destination with exit code $exit"
+    }
+  } else {
+    if (Test-Path $Destination) {
+      Remove-Item -Path $Destination -Recurse -Force
+      New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    }
+    Copy-Item -Path (Join-Path $Source '*') -Destination $Destination -Recurse -Force
+  }
+}
+
 $projectPath = Join-Path $repoRoot "viewer/MsgSecure.Viewer/MsgSecure.Viewer.csproj"
 if (-not (Test-Path $projectPath)) {
   throw "Viewer project not found at $projectPath"
@@ -53,6 +83,17 @@ Get-ChildItem -Path $publishDir -Filter 'MsgSecure.Viewer*' | ForEach-Object {
 $primaryExe = Join-Path $publishDir 'MsgSecure.exe'
 if (-not (Test-Path $primaryExe)) {
   throw "Expected viewer executable not found at $primaryExe"
+}
+
+$dependencies = @(
+  @{ Source = Join-Path $repoRoot '.venv'; Destination = Join-Path $publishDir '.venv' },
+  @{ Source = Join-Path $repoRoot 'mailcore'; Destination = Join-Path $publishDir 'mailcore' },
+  @{ Source = Join-Path $repoRoot 'mailcombine'; Destination = Join-Path $publishDir 'mailcombine' }
+)
+
+foreach ($dependency in $dependencies) {
+  Write-Host ("[COPY] Bundling {0}..." -f $dependency.Source)
+  Sync-Directory -Source $dependency.Source -Destination $dependency.Destination
 }
 
 $possibleCommands = @('iscc.exe','iscc','ISCC.exe','ISCC')
