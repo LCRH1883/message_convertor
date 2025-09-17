@@ -1,91 +1,94 @@
 # MsgSecure
 
-MsgSecure is split into two deliverables:
+MsgSecure ships two Windows experiences built on the same mail-processing core. Both live in this repository and share the `mailcore`/`mailcombine` packages.
 
-1. **MsgSecure (Viewer)** - the installer-only desktop experience for browsing, searching, and exporting mailboxes. The Windows build is currently supported; Linux packaging will follow. Progress and planning live in [`docs/viewer/`](docs/viewer/README.md).
-2. **MsgSecure Converter** - the portable conversion tool that merges `.msg`, `.eml`, and `.pst` inputs into searchable text, JSON sidecars, and hash reports. It ships as single-file executables (Windows/Linux) and as a Windows installer.
+- **MsgSecure Viewer** – a WPF desktop application for browsing, searching, and exporting `.msg`, `.eml`, and `.pst` collections. The Windows installer now bundles the embedded Python runtime so no extra setup is required.
+- **MsgSecure Converter** – a portable GUI/CLI tool (plus optional installer) that merges individual files or entire folders into searchable text, JSON sidecars, and SHA-256 hash reports.
 
-Current converter release: **0.1.0** (artifacts land under `dist/converter/0.1.0/`).
+Current release: **0.1.0**. Build outputs land under `dist/viewer/0.1.0/` and `dist/converter/0.1.0/`.
 
-## MsgSecure Converter Quick Use
+## MsgSecure Viewer
+### Quick Start
+- Install: `dist/viewer/0.1.0/MsgSecure-0.1.0-setup.exe`.
+- Launch **MsgSecure** from the Start Menu and open either a PST or a folder of `.msg/.eml` files.
+- The installer places a private `.venv`, `mailcore`, and `mailcombine` beside `MsgSecure.exe`; the viewer automatically starts the bundled RPC backend.
 
-Portable binaries:
-- **Windows:** `dist/converter/0.1.0/MsgSecure-Converter-win.exe`
-- **Linux:** `dist/converter/0.1.0/MsgSecure-Converter-x86_64.AppImage` (make executable: `chmod +x`)
-
-Pick an input folder, choose an output `.txt`, optionally enable:
-- Include attachments in text
-- Write JSON sidecar
-- Write hashes.csv (SHA-256)
-
-## Building MsgSecure Converter
-
-### Windows portable EXE
-```powershell
-pwsh packaging/windows/build_win_portable.ps1
-# => dist/converter/0.1.0/MsgSecure-Converter-win.exe
-```
-
-### Windows installer
-```powershell
-pwsh packaging/windows/build_win_installer.ps1
-# => dist/converter/0.1.0/MsgSecure-Converter-0.1.0-setup.exe
-```
-Run the installer to install or upgrade; uninstall via **Settings -> Apps -> MsgSecure Converter -> Uninstall**.
-
-Optional signing (elevated PowerShell):
-```powershell
-.\.venv\Scripts\sigstore.exe sign dist/converter/0.1.0/MsgSecure-Converter-0.1.0-setup.exe --oauth-force-oob
-```
-
-### Linux (run on a Linux host)
-```bash
-cd packaging/linux
-bash build_linux_appimage.sh    # => dist/converter/0.1.0/MsgSecure-Converter-x86_64.AppImage
-bash build_linux_console.sh     # => dist/converter/0.1.0/MsgSecure-Converter-linux-cli
-```
-
-### CLI (cross-platform)
-```bash
-python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-pip install -r requirements-gui.txt
-python -m mailcombine.gui  # GUI
-# or
-python -m mailcombine.cli -i samples -o combined_emails.txt --attachments --json --hashes
-```
-
-Key CLI options:
-- `--attachments` - include attachment list (name, size, SHA-256)
-- `--json [path]` / `--no-json`
-- `--hashes` / `--hashes-path PATH`
-- `--progress-file PATH` - emit JSONL progress updates
-
-### Verify hashes later
-- **Windows:** `Get-FileHash -Algorithm SHA256 "C:\path\to\file"`
-- **Linux/macOS:** `sha256sum /path/to/file`
-
-Match the output to the `sha256` column within the generated `*_hashes.csv`.
-
-## MsgSecure Viewer (Windows installer)
+### Build From Source
 ```powershell
 pwsh packaging/windows/build_viewer_installer.ps1
 # => dist/viewer/0.1.0/MsgSecure-0.1.0-setup.exe
 ```
-The script publishes the WPF viewer (`dist/viewer/0.1.0/publish/MsgSecure.exe`) and produces an installer that adds Start Menu and optional desktop shortcuts. Re-run the installer to upgrade; uninstall via **Settings -> Apps -> MsgSecure -> Uninstall**.
+The script publishes the WPF app, mirrors the runtime dependencies into `dist/viewer/0.1.0/publish/`, and invokes Inno Setup.
 
-Optional signing (PowerShell):
+### Sign & Verify
 ```powershell
-pwsh -NoLogo -NoProfile -Command \
-  ".\\.venv\\Scripts\\sigstore.exe sign dist/viewer/0.1.0/MsgSecure-0.1.0-setup.exe --bundle dist/viewer/0.1.0/MsgSecure-0.1.0-setup.sigstore --oidc-disable-ambient-providers"
+cd D:\Repos\message_convertor
+$env:TUF_DISABLE_UPDATER_SYMLINK = 1
+& '.\.venv\Scripts\sigstore.exe' sign `
+  'dist\viewer\0.1.0\MsgSecure-0.1.0-setup.exe' `
+  --bundle 'dist\viewer\0.1.0\MsgSecure-0.1.0-setup.sigstore' `
+  --oidc-disable-ambient-providers `
+  --overwrite
+
+& '.\.venv\Scripts\sigstore.exe' verify identity `
+  'dist\viewer\0.1.0\MsgSecure-0.1.0-setup.exe' `
+  --bundle 'dist\viewer\0.1.0\MsgSecure-0.1.0-setup.sigstore' `
+  --cert-identity lh@lcrhalpin.com `
+  --cert-oidc-issuer https://github.com/login/oauth `
+  --offline
 ```
 
-When prompted by the browser flow, authenticate with `lh@lcrhalpin.com`.
+## MsgSecure Converter
+### Quick Use (Portable EXE)
+- Windows: `dist/converter/0.1.0/MsgSecure-Converter-win.exe`.
+- Linux: `dist/converter/0.1.0/MsgSecure-Converter-x86_64.AppImage` (`chmod +x` before running).
+
+Steps: choose an input source (folder or single `.pst/.msg/.eml` file), pick an output text file, then optionally enable JSON and hash reporting. Progress is written to a JSONL file and `msgsecure_startup.log` beside the executable.
+
+### CLI Entry Point
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements-gui.txt
+python -m mailcombine.cli -i <input-path> -o combined.txt --attachments --hashes
 ```
+Flags mirror the GUI (`--no-json`, `--hashes-path`, `--progress-file`, etc.).
+
+### Build Artifacts
+- Portable EXE: `pwsh packaging/windows/build_win_portable.ps1`.
+- Windows installer: `pwsh packaging/windows/build_win_installer.ps1`.
+- Linux builds (run on Linux):
+  ```bash
+  cd packaging/linux
+  bash build_linux_appimage.sh    # dist/converter/0.1.0/MsgSecure-Converter-x86_64.AppImage
+  bash build_linux_console.sh     # dist/converter/0.1.0/MsgSecure-Converter-linux-cli
+  ```
+
+### Sign & Verify (Optional)
+```powershell
+cd D:\Repos\message_convertor
+$env:TUF_DISABLE_UPDATER_SYMLINK = 1
+& '.\.venv\Scripts\sigstore.exe' sign `
+  'dist\converter\0.1.0\MsgSecure-Converter-0.1.0-setup.exe' `
+  --bundle 'dist\converter\0.1.0\MsgSecure-Converter-0.1.0-setup.sigstore' `
+  --oidc-disable-ambient-providers `
+  --overwrite
+
+& '.\.venv\Scripts\sigstore.exe' verify identity `
+  'dist\converter\0.1.0\MsgSecure-Converter-0.1.0-setup.exe' `
+  --bundle 'dist\converter\0.1.0\MsgSecure-Converter-0.1.0-setup.sigstore' `
+  --cert-identity lh@lcrhalpin.com `
+  --cert-oidc-issuer https://github.com/login/oauth `
+  --offline
+```
+Need to sign a portable EXE? Re-run the same commands, swapping the installer path for the executable.
+
+### Hash Verification
+- Windows: `Get-FileHash -Algorithm SHA256 <path>`
+- Linux/macOS: `sha256sum <path>`
+Match the value against the `sha256` column in `*_hashes.csv`.
 
 ## Documentation
-
-- Converter docs: [`docs/converter/`](docs/converter/README.md) (versioned build notes and release information)
 - Viewer docs: [`docs/viewer/`](docs/viewer/README.md)
+- Converter docs: [`docs/converter/`](docs/converter/README.md)
 - Packaging scripts: [`packaging/windows`](packaging/windows) / [`packaging/linux`](packaging/linux)
-

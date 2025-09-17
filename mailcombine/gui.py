@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QFileDialog, QTextEdit, QCheckBox, QProgressBar, QMessageBox
+    QLineEdit, QPushButton, QFileDialog, QTextEdit, QCheckBox, QProgressBar, QMessageBox, QMenu
 )
 from PySide6.QtCore import QThread, Signal
 
@@ -70,7 +70,7 @@ class App(QWidget):
         in_row = QHBoxLayout()
         self.in_edit = QLineEdit()
         self.in_btn = QPushButton("Browse…")
-        in_row.addWidget(QLabel("Input Folder:")); in_row.addWidget(self.in_edit, 1); in_row.addWidget(self.in_btn)
+        in_row.addWidget(QLabel("Input Source:")); in_row.addWidget(self.in_edit, 1); in_row.addWidget(self.in_btn)
         lay.addLayout(in_row)
 
         out_row = QHBoxLayout()
@@ -94,15 +94,32 @@ class App(QWidget):
         self.run_btn = QPushButton("Run"); lay.addWidget(self.run_btn)
         self.log = QTextEdit(); self.log.setReadOnly(True); lay.addWidget(self.log, 1)
 
-        self.in_btn.clicked.connect(self.pick_input)
+        self.in_menu = QMenu(self)
+        self.in_menu.addAction("Folder…", self.pick_input_folder)
+        self.in_menu.addAction("File (.pst/.msg/.eml)…", self.pick_input_file)
+        self.in_btn.clicked.connect(self.show_input_menu)
         self.out_btn.clicked.connect(self.pick_output)
         self.run_btn.clicked.connect(self.run_task)
 
         self._stop_poll = threading.Event()
 
-    def pick_input(self):
+    def show_input_menu(self):
+        self.in_menu.exec(self.in_btn.mapToGlobal(self.in_btn.rect().bottomLeft()))
+
+    def pick_input_folder(self):
         d = QFileDialog.getExistingDirectory(self, "Select Input Folder")
-        if d: self.in_edit.setText(d)
+        if d:
+            self.in_edit.setText(d)
+
+    def pick_input_file(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Input File",
+            "",
+            "Email files (*.pst *.msg *.eml);;All files (*.*)"
+        )
+        if path:
+            self.in_edit.setText(path)
 
     def pick_output(self):
         path, _ = QFileDialog.getSaveFileName(self, "Select Output Text", "combined_emails.txt", "Text Files (*.txt);;All Files (*)")
